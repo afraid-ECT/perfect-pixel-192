@@ -15,7 +15,8 @@ const core = read('core.js')
   .replace(/^export\s+(?=(?:async\s+)?(?:function|const|let|class)\b)/gm, '')
   .replace(/^export\s*\{[^}]*\};?\s*$/gm, '');
 
-const app = read('app.js').replace(/^import\s*\{[^}]*\}\s*from\s*['"]\.\/core\.js['"];?\s*$/m, '');
+const locale = read('i18n.js').replace(/^export /gm, '');
+const app = read('app.js').replace(/^import .*? from ['"]\.\/i18n\.js['"];?$/m, '').replace(/^import\s*\{[^}]*\}\s*from\s*['"]\.\/core\.js['"];?\s*$/m, '');
 
 const css = read('app.css');
 const html = read('app.html');
@@ -24,9 +25,9 @@ const noModule = html
   .replace('<link rel="stylesheet" href="app.css" />', `<style>\n${css}\n</style>`)
   .replace('<title>Perfect Pixel 192 — 完美像素还原</title>', '<title>Perfect Pixel 192 — 完美像素还原（单文件版）</title>');
 
-const bundle = `(() => {\n"use strict";\n\n/* ============ core.js ============ */\n${core}\n\n/* ============ app.js ============ */\n${app}\n})();`;
+const bundle = `(() => {\n"use strict";\n\n/* ============ core.js ============ */\n${core}\n\n${locale}\n\n/* ============ app.js ============ */\n${app}\n})();`;
 
-const out = noModule.replace('__BUNDLE__', `<script>\n${bundle}\n</script>`);
+const out = noModule.replace('__BUNDLE__', () => `<script>\n${bundle}\n</script>`);
 writeFileSync(join(root, 'demo.html'), out, 'utf8');
 
 // 供 node --check 校验语法

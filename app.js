@@ -2,6 +2,8 @@
 
 import { analyze, countColors, scaleNearest } from './core.js';
 
+import { initializeLanguage } from './i18n.js';
+
 const $ = (sel) => document.querySelector(sel);
 
 const isExt = typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
@@ -1299,6 +1301,7 @@ function boot() {
   $('#sampleHint').textContent = SAMPLE_HINT[state.opts.sample];
   $('#refineNum').textContent = `${Math.round(state.opts.refine * 100)}%`;
 
+  initializeLanguage($('#language'));
   const params = new URLSearchParams(location.search);
   const src = params.get('src');
   if (src) {
