@@ -1,0 +1,5 @@
+# 统一用 LF，避免 Windows 上 clone 下来把 .js 改成 CRLF 导致 diff 噪音
+* text=auto eol=lf
+
+*.png binary
+*.zip binary

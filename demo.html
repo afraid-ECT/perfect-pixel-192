@@ -1,0 +1,3555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Perfect Pixel 192 — 完美像素还原（单文件版）</title>
+  <style>
+:root {
+  --bg: #0d0f14;
+  --bg-2: #12151c;
+  --card: #161a23;
+  --card-2: #1b202b;
+  --line: #262c3a;
+  --line-2: #333b4d;
+  --text: #e7ebf3;
+  --muted: #8d97ad;
+  --accent: #6ee7b7;
+  --accent-2: #7dd3fc;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --radius: 14px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #1b2a3a 0%, transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, #241f3a 0%, transparent 55%),
+    var(--bg);
+  color: var(--text);
+  font: 14px/1.5 "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- 顶栏 */
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(13, 15, 20, 0.72);
+  backdrop-filter: blur(10px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.brand h1 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: 0.2px;
+}
+
+.brand h1 b {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.brand p {
+  margin: 1px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 8px;
+  background: #0b0e13;
+  border: 1px solid var(--line-2);
+  flex: none;
+}
+
+.mark i {
+  background: #22303f;
+  border-radius: 1px;
+}
+
+.mark i:nth-child(1) { background: #2b3a4c; }
+.mark i:nth-child(3) { background: #2b3a4c; }
+.mark i:nth-child(5) { background: var(--accent); box-shadow: 0 0 8px rgba(110, 231, 183, 0.55); }
+.mark i:nth-child(7) { background: var(--accent-2); }
+.mark i:nth-child(9) { background: #2b3a4c; }
+
+.chips {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chip {
+  font-size: 11.5px;
+  color: var(--muted);
+  border: 1px solid var(--line-2);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.chip.on {
+  color: #06281f;
+  background: linear-gradient(180deg, #8af3c8, #4fd6a4);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.top-actions { display: flex; gap: 8px; }
+
+/* ------------------------------------------------------------- 布局 */
+
+.wrap {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 14px;
+  padding: 14px;
+}
+
+.stage {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.canvas-box {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: repeating-conic-gradient(#354952 0 25%, #23333c 0 50%) 0 0 / 20px 20px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.canvas-box.drag {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(110, 231, 183, 0.45);
+}
+
+.canvas-box canvas, #guideGrid {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(calc(-50% + var(--pan-x,0px)),calc(-50% + var(--pan-y,0px))) scale(var(--zoom,1));
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#cvGrid, #guideGrid { pointer-events: none; }
+#guideGrid { color:rgba(125,211,252,.32); }
+
+.empty {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 26px 30px;
+  border: 1px dashed var(--line-2);
+  border-radius: 12px;
+  background: rgba(12, 15, 20, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
+}
+
+.empty[hidden] { display: none; }
+.empty strong { font-weight: 600; }
+.empty span { color: var(--muted); font-size: 12.5px; }
+
+.busy {
+  position: absolute;
+  z-index: 3;
+  right: 12px;
+  bottom: 12px;
+  font-size: 12px;
+  color: #06281f;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-weight: 600;
+}
+
+.busy[hidden] { display: none; }
+
+.stage-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  flex-wrap: wrap;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.row em {
+  font-style: normal;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+}
+
+.row.check { cursor: pointer; }
+
+.row input[type="range"] {
+  width: 130px;
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  opacity: 0.85;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: #eaf6ff;
+  border: 2px solid #0b0e13;
+  box-shadow: 0 0 0 1px var(--line-2);
+}
+
+.zoom {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zoom span {
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 52px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------- 面板 */
+
+.panel {
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 2px;
+}
+
+.panel::-webkit-scrollbar { width: 8px; }
+.panel::-webkit-scrollbar-thumb { background: #2a3140; border-radius: 8px; }
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  padding: 12px 14px 14px;
+}
+
+.card h2 {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+select, input[type="url"], input[type="number"] {
+  width: 100%;
+  background: var(--card-2);
+  color: var(--text);
+  border: 1px solid var(--line-2);
+  border-radius: 9px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+select:focus, input:focus { border-color: var(--accent); }
+
+input[type="checkbox"] {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1px solid var(--line-2);
+  background: var(--card-2);
+  display: grid;
+  place-items: center;
+  flex: none;
+  cursor: pointer;
+}
+
+input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+input[type="checkbox"]:checked::after {
+  content: "";
+  width: 7px;
+  height: 4px;
+  border-left: 2px solid #06281f;
+  border-bottom: 2px solid #06281f;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.hint {
+  margin: 8px 0 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: var(--card-2);
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+
+.seg button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 6px 4px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.seg button.on {
+  background: #26303f;
+  color: var(--text);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.seg.cols5 { grid-template-columns: repeat(5, 1fr); }
+.seg.cols5 button { padding: 6px 2px; font-size: 12px; }
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+  min-height: 4px;
+}
+
+.palette .sw {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.08s;
+}
+
+.palette .sw:hover { transform: scale(1.12); }
+
+.palette .more {
+  font-size: 11px;
+  color: var(--muted);
+  align-self: center;
+  padding: 0 4px;
+}
+
+.palette:empty { display: none; }
+
+.grid-inputs {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto minmax(0,1fr);
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.grid-inputs[hidden] { display: none; }
+
+.grid-inputs label {
+  font-size: 11.5px;
+  color: var(--muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.card .row { margin-bottom: 8px; }
+.card .row:last-of-type { margin-bottom: 0; }
+
+.card .row select { width: auto; flex: 1; }
+
+.btn {
+  border: 1px solid var(--line-2);
+  background: #202633;
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, transform 0.06s;
+}
+
+.btn:hover { background: #28303f; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn.primary {
+  background: linear-gradient(180deg, #7df0c4, #45cf9c);
+  border-color: transparent;
+  color: #05251d;
+  font-weight: 650;
+}
+
+.btn.primary:hover { background: linear-gradient(180deg, #8bf6cf, #4fdaa6); }
+
+.btn.ghost { background: transparent; }
+
+.btn.tiny {
+  padding: 3px 9px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.url-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.diag {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 12.5px;
+}
+
+.diag dt { color: var(--muted); }
+.diag dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.notes {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 11.5px;
+}
+
+.notes li {
+  padding: 5px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  background: var(--card-2);
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.notes li.ok { color: #8ff0c8; border-color: #24503f; background: #12241d; }
+.notes li.warn { color: var(--warn); border-color: #4a3a16; background: #241d0f; }
+.notes li.bad { color: var(--danger); border-color: #4a2020; background: #241214; }
+
+@media (max-width: 1080px) {
+  .wrap { grid-template-columns: 1fr; }
+  .panel { max-height: 46vh; }
+  body { overflow: auto; }
+}
+
+#editor { position:fixed; inset: auto 1rem 1rem auto; margin:0; padding:18px; color:#eee; background:#181e29; border:1px solid #586278; border-radius:12px; max-height:90vh; overflow:auto; }
+#editor::backdrop { background:transparent; }
+#editor label { display:block; margin:.65rem 0; }
+#wheel { width:148px; height:148px; margin:auto; position:relative; touch-action:none; cursor:crosshair; }
+#wheel::before { content:""; position:absolute; inset:0; border-radius:50%; background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red); mask-image:radial-gradient(circle,transparent 44%,black 45%); touch-action:none; cursor:crosshair; }
+
+#wheel .wheel-mark { position:absolute; transform:translate(-50%,-50%); border:2px solid white; box-shadow:0 0 0 1px #222; border-radius:50%; width:20px; height:20px; padding:0; color:white; text-shadow:0 0 2px black,0 0 3px black; font: bold 11px/16px sans-serif; text-align:center; }
+
+.canvases {display:flex;align-items:center;justify-content:space-between;padding:.5rem 1rem;gap:1rem} #tabs {display:flex;gap:.4rem;flex-wrap:wrap} #tabs [aria-current=true]{outline:2px solid #66ceb3}
+
+.canvas-box { cursor:grab; touch-action:none; }
+.canvas-box.panning { cursor:grabbing; }
+#tabs .tab-close { opacity:0; pointer-events:none; color:#ff6565; }
+#tabs span:hover .tab-close, #tabs span:focus-within .tab-close { opacity:1; pointer-events:auto; }
+
+
+
+#paintTools {display:flex;gap:6px;margin-bottom:8px} #paintTools button {width:38px;height:36px} #paintTools button[aria-pressed=true]{outline:2px solid var(--accent)} #paintTools svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round}
+
+#layerPanel {max-height:150px;overflow:auto} #layerList button[aria-pressed=true]{outline:2px solid var(--accent)} #layerList div{display:flex;gap:5px;padding:3px}
+
+#gridLink {align-self:end;height:32px;width:32px;padding:5px}
+#gridLink svg {width:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+#gridLink[aria-pressed=true] {color:var(--accent);outline:2px solid currentColor}
+.grid-inputs input {width:100%;min-width:0}
+
+#gridFactors {grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:4px} #gridFactors small {display:block;font-size:10px}
+
+#topNotice {position:fixed;z-index:100;top:16px;left:50%;transform:translateX(-50%);max-width:90vw;padding:.55rem 1rem;border-radius:8px;background:#202a35;color:white;pointer-events:none;opacity:0;transition:opacity .25s}
+#topNotice.visible {opacity:1}
+
+</style>
+</head>
+<body>
+  <div id="topNotice" role="status" aria-live="polite"></div>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </span>
+      <div>
+        <h1>Perfect Pixel <b>192</b></h1>
+        <p>识别格宽 · 纯色还原 · 无插值放大</p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip on">192px 原生支持</span>
+      <span class="chip">2px 细格可识别</span>
+      <span class="chip" id="extChip" hidden>扩展环境</span>
+    </div>
+    <div class="top-actions">
+      <button id="btnDemo" class="btn">载入示例</button>
+      <button id="btnPick" class="btn primary">选择图片</button>
+      <input id="file" type="file" accept="image/*" hidden />
+    </div>
+  </header>
+
+  <nav class="canvases" aria-label="画布"><span id="tabs"></span><button id="undo" title="撤销设置或图层操作" disabled>撤销上一步</button></nav>
+  <main class="wrap">
+    <section class="stage">
+      <div class="canvas-box" id="dz">
+        <canvas id="cvSrc"></canvas>
+        <canvas id="cvRes"></canvas>
+        <svg id="guideGrid" aria-hidden="true" style="display:none"><path fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"/></svg>
+        <canvas id="cvGrid"></canvas>
+        <div class="empty" id="empty">
+          <strong>拖入图片 / 按 Ctrl+V 粘贴 / 从网页右键菜单导入</strong>
+          <span>建议先试一张 192×192 的 AI 像素图或缩略图</span>
+        </div>
+        <div class="busy" id="busy" hidden>处理中…</div>
+      </div>
+      <div class="stage-bar">
+        <label class="row">
+          <span>处理结果占比</span>
+          <input id="wipe" type="range" min="0" max="100" value="100" />
+          <em id="wipeNum">100%</em>
+        </label>
+        <label class="row check">
+          <input id="showGrid" type="checkbox" checked />
+          <span>网格</span>
+        </label>
+        <button id="layerToggle" title="图层" aria-label="图层" aria-expanded="false">▱ 图层</button>
+        <div class="zoom">
+          <button id="zoomOut" class="btn tiny" title="缩小">−</button>
+          <span id="zoomLabel">适应</span>
+          <button id="zoomIn" class="btn tiny" title="放大">+</button>
+          <button id="zoomFit" class="btn tiny ghost">适应</button>
+        </div>
+      </div>
+      <div id="layerPanel" hidden><button id="addLayer">＋ 新建图层</button><div id="layerList"></div></div>
+    </section>
+
+    <aside class="panel">
+      <section class="card">
+        <h2>网格</h2>
+        <div class="seg" id="modeSeg">
+          <button data-mode="auto" class="on">自动检测</button>
+          <button data-mode="manual">手动指定</button>
+        </div>
+        <div class="grid-inputs" id="manualBox" hidden>
+          <label>横向格数 <input id="gridW" type="number" min="1" max="512" value="32" /></label>
+          <button type="button" id="gridLink" aria-label="锁定网格宽高比" aria-pressed="true" title="锁定当前网格宽高比"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 13 4-4m-5 6-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 2 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"/></svg></button>
+          <label>纵向格数 <input id="gridH" type="number" min="1" max="512" value="32" /></label>
+          <div id="gridFactors" aria-label="按当前格数缩放"><button type="button" data-factor="2">×2<small></small></button><button type="button" data-factor="3">×3<small></small></button><button type="button" data-factor="5">×5<small></small></button><button type="button" data-factor="0.5">÷2<small></small></button><button type="button" data-factor="0.3333333333333333">÷3<small></small></button><button type="button" data-factor="0.2">÷5<small></small></button></div>
+        </div>
+        <label class="row">
+          <span>精修强度</span>
+          <input id="refine" type="range" min="0" max="50" value="25" />
+          <em id="refineNum">25%</em>
+        </label>
+        <label class="row check">
+          <input id="fixSquare" type="checkbox" checked />
+          <span>近似正方形时强制对齐（上游 fix_square）</span>
+        </label>
+        <label class="row check"><input id="forceGrid" type="checkbox" checked> 强制对齐到等距网格</label>
+        <label class="row check"><input id="largeGrid" type="checkbox"> 大图精校 · 上限 2048 格</label>
+        <p class="hint">这里填写采样格数。要导出 192×224 的 4×4 色块，请填 48×56，并在「输出与导出」选择 192×224。</p>
+        <button id="btnRedetect" class="btn">重新检测</button>
+      </section>
+      <section class="card">
+        <h2>采样方式一</h2>
+        <select id="sample">
+          <option value="outline">轮廓优先（格内众数 + 外侧清理）</option>
+          <option value="core">中心裁剪均值（推荐 / 抗软边）</option>
+          <option value="strong">★ 强劲模式：单像素中心 + 32 色 + 清轮廓外侧</option>
+          <option value="region">区域吸附去 AA（描边整体发灰时更狠）</option>
+          <option value="center" selected>单像素中心（最锐利，不去噪）</option>
+          <option value="majority">直方图众数（抗噪）</option>
+          <option value="median">中位数（上游原版）</option>
+        </select>
+        <label>采样方式二<select id="sample2"><option value="">无</option></select></label>
+        <p class="hint">第二次处理第一次的采样结果，保持相同的像素宽高。</p><p class="hint" id="sampleHint">只平均格子中央 50% 区域，避开 AI/JPEG 产生的软边混色环。</p>
+      </section>
+
+      <section class="card">
+        <h2>背景与主体</h2>
+<select id="subject"><option value="auto">自动识别（边缘连通背景）</option><option value="manual">手动保留套索内的主体</option></select>
+<button id="removeBG">一键清除背景</button><small id="maskNote"></small></section>
+<section class="card"><h2>画笔与选区</h2>
+<div id="paintTools" role="group" aria-label="左键工具">
+<button data-tool="paint" title="像素画笔" aria-label="像素画笔" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 16 16 4l4 4L8 20l-5 1zM13 7l4 4"/></svg></button>
+<button data-tool="lasso" title="自由套索" aria-label="自由套索" aria-pressed="false"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="9" rx="9" ry="6"/><path d="M6 14c-5 4 4 7 5 3s-5-4-4 0q1 6 10 4"/></svg></button>
+<button data-tool="bucket" aria-label="油漆桶" aria-pressed="false" title="油漆桶：点击画布填充连通同色区域"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 8-8 8 8-8 8z M4 12h16 M7 2l6 6"/><path fill="currentColor" d="M20 15s-2 3-2 4a2 2 0 0 0 4 0c0-1-2-4-2-4z"/></svg></button></div>
+<input type="color" id="ink" value="#222222"><label class="row" for="inkTransparency">透明度 <input id="inkTransparency" type="range" min="0" max="100" step="1" value="0"><output id="inkTransparencyValue" for="inkTransparency">0%</output></label>
+<button id="noSelection">取消选区</button><p class="hint">Alt + 左键吸取像素颜色，左键拖动上色。套索闭合后只在选区内绘制。套索模式下单击取消选区，靠近视图边缘自动平移。右键擦除，中键拖动画布，Ctrl+Z 仅撤销画布绘制或选区操作。</p></section>
+<section class="card"><h2>颜色数</h2>
+        <div class="seg cols5" id="colorSeg">
+          <button data-colors="0" class="on">不限</button>
+          <button data-colors="8">8</button>
+          <button data-colors="16">16</button>
+          <button data-colors="32">32</button>
+          <button data-colors="64">64</button>
+        </div>
+        <p class="hint" id="colorHint">不限色时保留采样得到的全部颜色；限制后会做中位切分合并相近色。</p>
+        <dialog id="editor"><h2>编辑采样色</h2>
+<div id="wheel" title="沿色环点击或拖动选择色相"></div><small>原：原采样色　当：当前编辑色　配：可选配色</small>
+<label>颜色 <input id="tone" type="color"></label>
+<label>明暗调整 <output id="lightValue"></output><input id="light" type="range" min="-100" max="100" value="0"></label>
+<label>不透明度 <output id="opacityValue"></output><input id="opacity" type="range" min="0" max="100" value="100"></label>
+<label>配色 <select id="scheme"><option value="adjacent">邻近色</option><option value="triad">三角色</option><option value="tetrad">四角色（正方形）</option></select></label>
+<div id="choices"></div><button id="applyTone">应用</button><button id="cancelTone">取消</button><button id="resetTone">恢复此采样色</button></dialog>
+<div class="palette" id="palette"></div>
+        <p class="hint" id="paletteHint">点击采样色编辑，右键复制色值。</p>
+      </section>
+
+
+
+      <section class="card">
+        <h2>输出与导出</h2>
+        <label class="row">
+          <span>目标尺寸</span>
+          <select id="target">
+            <option value="one">1× 原格（无放大）</option>
+            <option value="input">与原图同尺寸</option>
+            <option value="192x224">192 × 224（竖版）</option>
+            <option value="192" selected>192 × 192</option>
+            <option value="384">384 × 384</option>
+            <option value="512">512 × 512</option>
+            <option value="1024">1024 × 1024</option>
+          </select>
+        </label>
+        <p class="hint" id="targetHint">—</p>
+        <div class="btns">
+          <button id="btnExport" class="btn primary">导出 PNG</button>
+          <button id="btnCopy" class="btn">复制到剪贴板</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>诊断</h2>
+        <dl class="diag" id="diag">
+          <dt>输入</dt><dd id="dInput">—</dd>
+          <dt>检测格数</dt><dd id="dGrid">—</dd>
+          <dt>单格尺寸</dt><dd id="dCell">—</dd>
+          <dt>估计方法</dt><dd id="dMethod">—</dd>
+          <dt>置信度</dt><dd id="dConf">—</dd>
+          <dt>耗时</dt><dd id="dMs">—</dd>
+          <dt>输出</dt><dd id="dOut">—</dd>
+          <dt>颜色</dt><dd id="dColors">—</dd>
+        </dl>
+        <ul class="notes" id="notes"></ul>
+      </section>
+
+      <section class="card">
+        <h2>从 URL 导入</h2>
+        <div class="url-row">
+          <input id="url" type="url" placeholder="https://…/sprite.png" />
+          <button id="btnUrl" class="btn">读取</button>
+        </div>
+        <p class="hint" id="urlHint">跨域图片需要该站点允许读取，否则请改用拖拽或粘贴。</p>
+      </section>
+    </aside>
+  </main>
+
+  <script>
+(() => {
+"use strict";
+
+/* ============ core.js ============ */
+/**
+ * Perfect Pixel 192 — core algorithm (DOM-free, runs in browser & Node)
+ *
+ * 移植自 GitHub 上 star 最高的 perfectPixel 项目：
+ *   theamusing/perfectPixel (2,281★) — src/perfect_pixel/perfect_pixel.py
+ *
+ * 与上游一致的流程：
+ *   1) 灰度化，Sobel(k=3) 求梯度，按列/行做投影累加
+ *   2) 估计单元格边长（上游用 2D FFT 幅值；这里用等价的频域自相关，
+ *      并保留上游的“梯度峰间隔中位数”作为第二级回退）
+ *   3) 从图像中心向两侧逐格外推，每条线在 ±refine 格宽内吸附到最强梯度峰
+ *   4) 逐格采样：center / median / majority(k=2 聚类多数表决)
+ *   5) 近似正方形时做 fix_square 对齐
+ *
+ * 与上游的差异（针对 192px 场景修正）：
+ *   - 格宽窗口 [4,20] → [1,256]：上游硬编码 min_size=4/max_pixel_size=20，
+ *     192px 图只有 10~48 格能通过校验；本实现支持 192px 下 96×96、192×192
+ *     这类 2px / 1px 细格。
+ *   - 上游 FFT 路径用 1-log(1+|F|) 且峰阈 0.35，实际在检“能量低点”，
+ *     数值上不可靠；这里改为对去趋势后的梯度投影做自相关，
+ *     取最小可信周期（含抛物线亚像素插值）。
+ *   - majority 采样的 k-means 改为确定性初始化，结果可复现。
+ *   - 网格线裁到 [0,len] 并去重，避免上游“图外线”造成格数偏一。
+ */
+
+const DEFAULTS = {
+  sample: 'core',     // core | center | majority | median
+  minCell: 2,         // 最小格宽(px) — 上游为 4
+  maxCell: 64,        // 最大格宽(px) — 上游为 20
+  maxRatio: 1.5,      // 横纵格宽比上限
+  refine: 0.25,       // 网格线精修强度 0~0.5
+  fixSquare: true,    // 近似正方形时对齐
+  colors: 0,          // >1 时把输出限制到该色数（中位切分），0 = 跟随模式默认
+  strongColors: 32,   // 强劲模式默认色数
+  bgTol: 7,           // 背景区域生长：相邻格最大 Lab 色差
+  bgGuard: 40,        // 背景区域生长：与背景众数色的最大 Lab 色差
+  ringTol: 26,        // 轮廓外侧混色环并进背景时允许的色差
+  gridW: 0,           // >0 时手动指定格数，跳过自动估计
+  gridH: 0,
+};
+
+/* ------------------------------------------------------------------ 基础 */
+
+function grayOf(img) {
+  const { data } = img;
+  const n = img.width * img.height;
+  const g = new Float32Array(n);
+  for (let i = 0, p = 0; i < n; i++, p += 4) {
+    g[i] = 0.299 * data[p] + 0.587 * data[p + 1] + 0.114 * data[p + 2];
+  }
+  return g;
+}
+
+/** Sobel(k=3) 绝对值按列/行投影，等价于上游 grad_x_sum / grad_y_sum。 */
+function gradientProjections(gray, w, h) {
+  const gx = new Float64Array(w);
+  const gy = new Float64Array(h);
+  for (let y = 0; y < h; y++) {
+    const rows = [y > 0 ? y - 1 : 0, y, y < h - 1 ? y + 1 : h - 1];
+    for (let x = 0; x < w; x++) {
+      const c0 = x > 0 ? x - 1 : 0;
+      const c2 = x < w - 1 ? x + 1 : w - 1;
+      const tl = gray[rows[0] * w + c0], tc = gray[rows[0] * w + x], tr = gray[rows[0] * w + c2];
+      const ml = gray[rows[1] * w + c0], mr = gray[rows[1] * w + c2];
+      const bl = gray[rows[2] * w + c0], bc = gray[rows[2] * w + x], br = gray[rows[2] * w + c2];
+      const sx = (tr + 2 * mr + br) - (tl + 2 * ml + bl);
+      const sy = (bl + 2 * bc + br) - (tl + 2 * tc + tr);
+      gx[x] += Math.abs(sx);
+      gy[y] += Math.abs(sy);
+    }
+  }
+  return { gx, gy };
+}
+
+function detrend(sig, win) {
+  const n = sig.length;
+  const out = new Float64Array(n);
+  const half = Math.max(1, Math.round(win / 2));
+  const pre = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + sig[i];
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - half);
+    const b = Math.min(n, i + half + 1);
+    out[i] = sig[i] - (pre[b] - pre[a]) / (b - a);
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------- 频域 FFI */
+
+const fftCache = new Map();
+
+function fftTables(n) {
+  let t = fftCache.get(n);
+  if (t) return t;
+  const rev = new Uint32Array(n);
+  let bits = 0;
+  while (1 << bits < n) bits++;
+  for (let i = 0; i < n; i++) {
+    let r = 0;
+    for (let b = 0; b < bits; b++) r |= ((i >> b) & 1) << (bits - 1 - b);
+    rev[i] = r;
+  }
+  const half = n >> 1;
+  const cosT = new Float64Array(half);
+  const sinT = new Float64Array(half);
+  for (let i = 0; i < half; i++) {
+    const a = (-2 * Math.PI * i) / n;
+    cosT[i] = Math.cos(a);
+    sinT[i] = Math.sin(a); // = -sin(2πi/n)，配合 e^{-i} 约定
+  }
+  t = { rev, cosT, sinT };
+  fftCache.set(n, t);
+  return t;
+}
+
+function fftInPlace(re, im, inverse) {
+  const n = re.length;
+  const { rev, cosT, sinT } = fftTables(n);
+  for (let i = 0; i < n; i++) {
+    const j = rev[i];
+    if (j > i) {
+      let t = re[i]; re[i] = re[j]; re[j] = t;
+      t = im[i]; im[i] = im[j]; im[j] = t;
+    }
+  }
+  for (let size = 2; size <= n; size <<= 1) {
+    const half = size >> 1;
+    const step = n / size;
+    for (let i = 0; i < n; i += size) {
+      for (let j = 0, k = 0; j < half; j++, k += step) {
+        const wr = cosT[k];
+        const wi = inverse ? -sinT[k] : sinT[k];
+        const a = i + j;
+        const b = a + half;
+        const xr = re[b] * wr - im[b] * wi;
+        const xi = re[b] * wi + im[b] * wr;
+        re[b] = re[a] - xr; im[b] = im[a] - xi;
+        re[a] += xr; im[a] += xi;
+      }
+    }
+  }
+}
+
+/** 自相关（Wiener–Khinchin）：先 FFT 取功率谱，再 IFFT。 */
+function autocorr(sig) {
+  const n = sig.length;
+  let m = 1;
+  while (m < n * 2) m <<= 1;
+  const re = new Float64Array(m);
+  const im = new Float64Array(m);
+  let mean = 0;
+  for (let i = 0; i < n; i++) mean += sig[i];
+  mean /= n || 1;
+  for (let i = 0; i < n; i++) re[i] = sig[i] - mean;
+  fftInPlace(re, im, false);
+  for (let i = 0; i < m; i++) {
+    const p = re[i] * re[i] + im[i] * im[i];
+    re[i] = p;
+    im[i] = 0;
+  }
+  fftInPlace(re, im, true);
+  const ac = new Float64Array(n);
+  const denom = re[0] || 1;
+  for (let i = 0; i < n; i++) ac[i] = re[i] / denom;
+  return ac;
+}
+
+/** 在自相关序列里挑最小可信周期（避开 2p/3p 谐波），带亚像素插值。 */
+function pickPeriod(ac, minLag, maxLag) {
+  const lo = Math.max(2, Math.ceil(minLag));
+  const hi = Math.min(ac.length - 2, Math.floor(maxLag));
+  if (hi <= lo) return null;
+  let best = 0;
+  let arg = -1;
+  for (let k = lo; k <= hi; k++) if (ac[k] > best) { best = ac[k]; arg = k; }
+  if (arg < 0 || best <= 1e-6) return null;
+  let chosen = arg;
+  for (let k = lo; k <= hi; k++) {
+    if (ac[k] < 0.8 * best) continue;
+    const isLocal = (k === lo || ac[k] >= ac[k - 1]) && (k === hi || ac[k] >= ac[k + 1]);
+    if (isLocal) { chosen = k; break; }
+  }
+  let period = chosen;
+  const y0 = ac[chosen - 1], y1 = ac[chosen], y2 = ac[chosen + 1];
+  const den = y0 - 2 * y1 + y2;
+  if (Math.abs(den) > 1e-9) {
+    const d = (0.5 * (y0 - y2)) / den;
+    if (Math.abs(d) < 0.5) period = chosen + d;
+  }
+  return { period, peak: ac[chosen], ratio: ac[chosen] / (ac[0] || 1) };
+}
+
+/** 梳状搜索回退：直接最小化 |sig[i]-sig[i+p]| 的均值。 */
+function combPeriod(sig, minCell, maxCell) {
+  const n = sig.length;
+  const lo = Math.max(1, minCell);
+  const hi = Math.min(maxCell, n / 3);
+  if (!(hi > lo) || n < 16) return null;
+  const steps = 240;
+  let best = null;
+  const base = [];
+  for (let s = 0; s <= steps; s++) {
+    const p = lo + ((hi - lo) * s) / steps;
+    const ip = Math.floor(p);
+    const fp = p - ip;
+    let cost = 0;
+    let cnt = 0;
+    for (let i = 0; i + ip + 1 < n; i++) {
+      const b = sig[i + ip] * (1 - fp) + sig[i + ip + 1] * fp;
+      cost += Math.abs(sig[i] - b);
+      cnt++;
+    }
+    if (!cnt) continue;
+    base.push({ period: p, cost: cost / cnt });
+    if (!best || base[base.length - 1].cost < best.cost) best = base[base.length - 1];
+  }
+  if (!best) return null;
+  const costs = base.map((b) => b.cost).sort((a, b) => a - b);
+  const median = costs[costs.length >> 1] || 1;
+  return { period: best.period, peak: 1 - best.cost / (median || 1), ratio: Math.max(0, 1 - best.cost / (median || 1)) };
+}
+
+/**
+ * 上游 estimate_grid_gradient 的忠实移植：
+ * 梯度投影上的强峰间隔取中位数 → 格宽。
+ */
+function gradientIntervalPeriod(sig, relThr = 0.2, minInterval = 4) {
+  const mx = sig.reduce((a, b) => Math.max(a, b), 0);
+  if (mx < 1e-6) return null;
+  const thr = relThr * mx;
+  const peaks = [];
+  for (let i = 1; i < sig.length - 1; i++) {
+    if (sig[i] > sig[i - 1] && sig[i] > sig[i + 1] && sig[i] >= thr) {
+      if (!peaks.length || i - peaks[peaks.length - 1] >= minInterval) peaks.push(i);
+    }
+  }
+  if (peaks.length < 4) return null;
+  const intervals = [];
+  for (let i = 1; i < peaks.length; i++) intervals.push(peaks[i] - peaks[i - 1]);
+  intervals.sort((a, b) => a - b);
+  const med = intervals[intervals.length >> 1];
+  if (!med) return null;
+  const spread = (intervals[intervals.length >> 2] || med) / med;
+  return { period: med, peak: 1, ratio: Math.min(1, 1 - Math.abs(1 - spread)) };
+}
+
+/**
+ * 块一致性估计（本实现新增，针对像素画/AI 像素图）。
+ *
+ * 判据：真正格宽 c 必须让“所有色变”都落在 c 的倍数边界上，
+ * 即块内相邻像素差能量占比 r(c) → 0。且 c 必须整除真实格宽，
+ * 所以 r(c)≈0 的最大 c 就是真实格宽——对 1px/2px 细格同样成立，
+ * 而 Sobel 投影在这种尺度下已无周期性可言。
+ */
+function blockPeriods(gray, w, h, opts = {}) {
+  const o = { ...DEFAULTS, ...opts };
+  const minC = Math.max(2, Math.round(o.minCell));
+  const maxC = Math.min(Math.round(o.maxCell), Math.floor(Math.max(w, h) / 2));
+  if (maxC < minC || w < 6 || h < 6) return null;
+
+  const yStep = Math.max(1, Math.ceil(h / 512));
+  const xStep = Math.max(1, Math.ceil(w / 1024));
+  const hx = [];
+  const hv = [];
+  let totH = 0;
+  for (let y = 0; y < h; y += yStep) {
+    const row = y * w;
+    for (let x = 0; x + 1 < w; x += xStep) {
+      const d = gray[row + x] - gray[row + x + 1];
+      const d2 = d * d;
+      if (d2 === 0) continue;
+      hx.push(x);
+      hv.push(d2);
+      totH += d2;
+    }
+  }
+  const vy = [];
+  const vv = [];
+  let totV = 0;
+  for (let y = 0; y + 1 < h; y++) {
+    const row = y * w;
+    const next = row + w;
+    for (let x = 0; x < w; x += xStep) {
+      const d = gray[row + x] - gray[next + x];
+      const d2 = d * d;
+      if (d2 === 0) continue;
+      vy.push(y);
+      vv.push(d2);
+      totV += d2;
+    }
+  }
+  if (!totH || !totV) return null;
+
+  const rH = new Float64Array(maxC + 1);
+  const rV = new Float64Array(maxC + 1);
+  for (let c = minC; c <= maxC; c++) {
+    rH[c] = ratioAt(hx, hv, totH, c);
+    rV[c] = ratioAt(vy, vv, totV, c);
+  }
+
+  const px = pickBlock(rH, minC, maxC);
+  const py = pickBlock(rV, minC, maxC);
+  if (!px || !py) return null;
+  return { cellW: px.cell, cellH: py.cell, score: Math.min(px.score, py.score) };
+}
+
+/** 块内相邻像素差能量占比；c 可以是小数（非整数格宽）。 */
+function ratioAt(idx, val, total, c) {
+  let within = 0;
+  for (let i = 0; i < val.length; i++) {
+    const p = idx[i];
+    if (Math.floor(p / c) === Math.floor((p + 1) / c)) within += val[i];
+  }
+  return within / total;
+}
+
+/**
+ * 先整数扫描定位候选，再在其邻域做小数精度细化：
+ * 真实格宽 3.43px 这类非整数情况下，只有精确的小数 c 才能让块内差能量归零。
+ */
+function pickBlock(ratios, minC, maxC) {
+  let m = Infinity;
+  for (let c = minC; c <= maxC; c++) if (ratios[c] < m) m = ratios[c];
+  // 模糊会让“块内差能量”整体抬高；m 太大说明图里没有真正的方格结构
+  if (!(m < 0.25)) return null;
+  // r(c) 随 c 变小单调下降，只有真实格宽的整除数会贴近 0。
+  // 所以取“仍低于阈值的最大的 c”——越过真实格宽后 r 会跳崖式上升。
+  const lim = Math.max(0.3, m * 2 + 0.05);
+  let best = -1;
+  for (let c = maxC; c >= minC; c--) {
+    if (ratios[c] <= lim) { best = c; break; }
+  }
+  if (best < 0) return null;
+  return { cell: best, score: 1 - ratios[best] };
+}
+
+/* ------------------------------------------------------------ 格宽估计 */
+
+function estimateCell(gray, gx, gy, opts, w, h) {
+  const o = { ...DEFAULTS, ...opts };
+  const minC = Math.max(2, Math.round(o.minCell));
+  const maxC = Math.max(minC + 1, Math.round(o.maxCell));
+  const ratioOk = (a, b) => Math.max(a, b) / Math.min(a, b) <= o.maxRatio;
+
+  // 1) 块边界一致性：像素画/AI 像素图最可靠，也覆盖 2px 细格
+  const blk = blockPeriods(gray, w, h, o);
+  if (blk && blk.score > 0.75 && ratioOk(blk.cellW, blk.cellH)) {
+    const gW = Math.max(1, Math.round(w / blk.cellW));
+    const gH = Math.max(1, Math.round(h / blk.cellH));
+    return {
+      cellW: w / gW,
+      cellH: h / gH,
+      gridW: gW,
+      gridH: gH,
+      method: 'block-boundary',
+      confidence: Math.min(1, 0.6 + blk.score * 0.4),
+    };
+  }
+
+  // 2) 频域自相关基频（非整数格宽时的主要依据）
+  const win = Math.max(8, Math.min(o.maxCell * 3, Math.min(w, h) / 2));
+  const fx = pickPeriod(autocorr(detrend(gx, win)), minC, maxC);
+  const fy = pickPeriod(autocorr(detrend(gy, win)), minC, maxC);
+  if (fx && fy && ratioOk(fx.period, fy.period)) {
+    const gW = Math.max(1, Math.round(w / fx.period));
+    const gH = Math.max(1, Math.round(h / fy.period));
+    if (ratioOk(w / gW, h / gH)) {
+      return {
+        cellW: w / gW,
+        cellH: h / gH,
+        gridW: gW,
+        gridH: gH,
+        method: 'fft-autocorr',
+        confidence: Math.max(0.4, Math.min(0.95, 0.4 + Math.min(fx.ratio, fy.ratio))),
+      };
+    }
+  }
+
+  // 3) 上游的梯度峰间隔中位数
+  const giX = gradientIntervalPeriod(gx);
+  const giY = gradientIntervalPeriod(gy);
+  if (giX && giY && ratioOk(giX.period, giY.period)) {
+    const gW = Math.max(1, Math.round(w / giX.period));
+    const gH = Math.max(1, Math.round(h / giY.period));
+    return { cellW: w / gW, cellH: h / gH, gridW: gW, gridH: gH, method: 'gradient-interval', confidence: 0.5 };
+  }
+
+  // 4) 梳状搜索
+  const cbX = combPeriod(detrend(gx, win), minC, maxC);
+  const cbY = combPeriod(detrend(gy, win), minC, maxC);
+  if (cbX && cbY) {
+    const gW = Math.max(1, Math.round(w / cbX.period));
+    const gH = Math.max(1, Math.round(h / cbY.period));
+    return { cellW: w / gW, cellH: h / gH, gridW: gW, gridH: gH, method: 'comb', confidence: 0.35 };
+  }
+
+  const cell = Math.max(minC, Math.min(maxC, Math.min(w, h) / 32));
+  return {
+    cellW: cell,
+    cellH: cell,
+    gridW: Math.max(1, Math.round(w / cell)),
+    gridH: Math.max(1, Math.round(h / cell)),
+    method: 'fallback',
+    confidence: 0.15,
+  };
+}
+
+/**
+ * 在 origin ±search 内找最强梯度峰。
+ * 返回值以“像素边界坐标”为单位：像素索引 i 的中心在 i+0.5，
+ * 因此平台峰(5,6) → 均值 5.5 → 返回 6.0，正好落在两列之间。
+ */
+function findBestGrid(origin, search, grad) {
+  const len = grad.length;
+  const from = Math.max(0, Math.round(origin - search - 0.5));
+  const to = Math.min(len - 1, Math.round(origin + search - 0.5));
+  let bestVal = 0;
+  const hits = [];
+  for (let c = from; c <= to; c++) {
+    const v = grad[c];
+    if (v <= 0) continue;
+    const leftOk = c === 0 || v >= grad[c - 1];
+    const rightOk = c === len - 1 || v >= grad[c + 1];
+    if (!leftOk || !rightOk) continue;
+    if (v > bestVal * 1.0001) {
+      bestVal = v;
+      hits.length = 0;
+      hits.push(c);
+    } else if (v >= bestVal * 0.999) {
+      hits.push(c);
+    }
+  }
+  if (!hits.length) return Math.max(0, Math.min(len, origin));
+  let sum = 0;
+  for (const c of hits) sum += c;
+  return sum / hits.length + 0.5;
+}
+
+/**
+ * 以 0 为起点构建整数格点阵，并在 ±0.35 格内吸附到梯度峰（保持单调，不会重叠）。
+ * 先测“边界对比度”：像 2px 这种细格，Sobel 跨满整格导致每列都是边界，
+ * 梯度没有谷 → 直接返回精确点阵，不做吸附（否则会乱跳）。
+ */
+function refineLines(len, cell, grad, intensity) {
+  const c = Math.max(1, cell);
+  const lattice = [];
+  for (let k = 0; k * c <= len + 1e-6; k++) lattice.push(Math.min(len, k * c));
+  if (lattice[lattice.length - 1] < len - 1e-6) lattice.push(len);
+  if (lattice.length < 2) return [0, len];
+
+  let bsum = 0;
+  let bn = 0;
+  for (let k = 1; k < lattice.length - 1; k++) {
+    const i = Math.round(lattice[k]);
+    if (i > 0 && i < len) {
+      bsum += grad[i - 1] + grad[i];
+      bn += 2;
+    }
+  }
+  const bmean = bn ? bsum / bn : 0;
+  let total = 0;
+  for (let i = 0; i < len; i++) total += grad[i];
+  const gmean = total / len || 1;
+  const contrast = bmean / gmean;
+  if (!(contrast > 1.6) || !(intensity > 0)) return lattice;
+
+  const search = Math.min(Math.max(0.6, c * intensity), c * 0.35);
+  const out = [lattice[0]];
+  for (let k = 1; k < lattice.length - 1; k++) {
+    const p = lattice[k];
+    const q = findBestGrid(p, search, grad);
+    out.push(Math.max(out[out.length - 1] + c * 0.3, Math.min(len, q)));
+  }
+  out.push(len);
+  return out;
+}
+
+/* ---------------------------------------------------------------- 采样 */
+
+function clampRect(x0, x1, y0, y1, w, h) {
+  let a = Math.max(0, Math.min(w, Math.round(x0)));
+  let b = Math.max(0, Math.min(w, Math.round(x1)));
+  let c = Math.max(0, Math.min(h, Math.round(y0)));
+  let d = Math.max(0, Math.min(h, Math.round(y1)));
+  if (b <= a) b = Math.min(w, a + 1);
+  if (d <= c) d = Math.min(h, c + 1);
+  return [a, b, c, d];
+}
+
+function sampleCenter(data, w, x0, x1, y0, y1) {
+  const px = Math.min(x1 - 1, Math.floor((x0 + x1) / 2));
+  const py = Math.min(y1 - 1, Math.floor((y0 + y1) / 2));
+  const p = (py * w + px) * 4;
+  return [data[p], data[p + 1], data[p + 2], data[p + 3]];
+}
+
+function sampleMedian(data, w, x0, x1, y0, y1) {
+  const r = [], g = [], b = [], a = [];
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      const p = (y * w + x) * 4;
+      r.push(data[p]); g.push(data[p + 1]); b.push(data[p + 2]); a.push(data[p + 3]);
+    }
+  }
+  if (!r.length) return [0, 0, 0, 0];
+  const mid = (arr) => {
+    arr.sort((p, q) => p - q);
+    return arr[arr.length >> 1];
+  };
+  return [mid(r), mid(g), mid(b), mid(a)];
+}
+
+/** 中心裁剪均值：只平均格子中央 50% 区域，避开软边混色环。 */
+function sampleCore(data, w, x0, x1, y0, y1) {
+  const cw = x1 - x0;
+  const ch = y1 - y0;
+  const mw = Math.max(1, Math.round(cw * 0.5));
+  const mh = Math.max(1, Math.round(ch * 0.5));
+  const sx = x0 + Math.floor((cw - mw) / 2);
+  const sy = y0 + Math.floor((ch - mh) / 2);
+  let r = 0, g = 0, b = 0, a = 0, n = 0;
+  for (let y = sy; y < sy + mh; y++) {
+    for (let x = sx; x < sx + mw; x++) {
+      if (x < 0 || y < 0 || x >= w) continue;
+      const p = (y * w + x) * 4;
+      r += data[p]; g += data[p + 1]; b += data[p + 2]; a += data[p + 3];
+      n++;
+    }
+  }
+  if (!n) return [0, 0, 0, 0];
+  return [r / n, g / n, b / n, a / n];
+}
+
+function sampleMajority(data, w, x0, x1, y0, y1) {
+  const total = (x1 - x0) * (y1 - y0);
+  if (!total) return [0, 0, 0, 0];
+  const step = total > 4096 ? Math.ceil(total / 4096) : 1;
+  // 颜色直方图（每通道 32 级量化）→ 取众数桶 → 桶内取均值
+  const buckets = new Map();
+  let idx = 0;
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++, idx++) {
+      if (idx % step) continue;
+      const p = (y * w + x) * 4;
+      const key = ((data[p] >> 3) << 10) | ((data[p + 1] >> 3) << 5) | (data[p + 2] >> 3);
+      let b = buckets.get(key);
+      if (!b) {
+        b = [0, 0, 0, 0, 0];
+        buckets.set(key, b);
+      }
+      b[0] += data[p];
+      b[1] += data[p + 1];
+      b[2] += data[p + 2];
+      b[3] += data[p + 3];
+      b[4]++;
+    }
+  }
+  let best = null;
+  for (const b of buckets.values()) if (!best || b[4] > best[4]) best = b;
+  if (!best) return [0, 0, 0, 0];
+  const n = best[4];
+  return [best[0] / n, best[1] / n, best[2] / n, best[3] / n];
+}
+
+function sampleCells(img, xs, ys, method) {
+  const { data, width: w, height: h } = img;
+  const nx = xs.length - 1;
+  const ny = ys.length - 1;
+  const out = new Uint8ClampedArray(nx * ny * 4);
+  const fn = method === 'center' ? sampleCenter
+    : method === 'median' ? sampleMedian
+      : method === 'core' ? sampleCore
+        : sampleMajority;
+  for (let j = 0; j < ny; j++) {
+    const [x0, x1, y0, y1] = [0, 0, ys[j], ys[j + 1]];
+    const rectY = clampRect(0, 1, y0, y1, w, h);
+    for (let i = 0; i < nx; i++) {
+      const rect = clampRect(xs[i], xs[i + 1], rectY[2], rectY[3], w, h);
+      const c = fn(data, w, rect[0], rect[1], rect[2], rect[3]);
+      const p = (j * nx + i) * 4;
+      out[p] = c[0]; out[p + 1] = c[1]; out[p + 2] = c[2]; out[p + 3] = c[3];
+    }
+  }
+  return { data: out, width: nx, height: ny };
+}
+
+/* ---------------------------------------------------- 强劲模式（去抗锯齿） */
+
+/**
+ * 中心加权直方图众数采样：
+ * 每个格子内按到格心的距离做高斯加权统计颜色，取权重最大的 8 级量化桶的加权均值。
+ * 同时返回置信度 conf（该桶占总权重的比例）——沿描边的混色格 conf 会明显偏低，
+ * 后续只用高置信度格子建调色板，再全场吸附，混色就被彻底消掉。
+ */
+function sampleStrongCells(img, xs, ys) {
+  const { data, width: w, height: h } = img;
+  const nx = xs.length - 1;
+  const ny = ys.length - 1;
+  const out = new Uint8ClampedArray(nx * ny * 4);
+  const conf = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) {
+    const y0 = Math.max(0, Math.min(h, Math.round(ys[j])));
+    const y1 = Math.max(0, Math.min(h, Math.round(ys[j + 1])));
+    for (let i = 0; i < nx; i++) {
+      const x0 = Math.max(0, Math.min(w, Math.round(xs[i])));
+      const x1 = Math.max(0, Math.min(w, Math.round(xs[i + 1])));
+      const cx = (x0 + x1) / 2;
+      const cy = (y0 + y1) / 2;
+      const sigma = Math.max(0.9, (x1 - x0) / 4);
+      const inv = 1 / (2 * sigma * sigma);
+      const buckets = new Map();
+      let total = 0;
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const p = (y * w + x) * 4;
+          if (data[p + 3] === 0) continue;
+          const dx = x + 0.5 - cx;
+          const dy = y + 0.5 - cy;
+          const wgt = Math.exp(-(dx * dx + dy * dy) * inv);
+          const key = ((data[p] >> 5) << 6) | ((data[p + 1] >> 5) << 3) | (data[p + 2] >> 5);
+          let b = buckets.get(key);
+          if (!b) {
+            b = [0, 0, 0, 0, 0];
+            buckets.set(key, b);
+          }
+          b[0] += wgt;
+          b[1] += data[p] * wgt;
+          b[2] += data[p + 1] * wgt;
+          b[3] += data[p + 2] * wgt;
+          b[4] += data[p + 3] * wgt;
+          total += wgt;
+        }
+      }
+      const idx = j * nx + i;
+      if (!total) {
+        out[idx * 4 + 3] = 0;
+        continue;
+      }
+      let best = null;
+      for (const b of buckets.values()) if (!best || b[0] > best[0]) best = b;
+      const sw = best[0] || 1;
+      out[idx * 4] = best[1] / sw;
+      out[idx * 4 + 1] = best[2] / sw;
+      out[idx * 4 + 2] = best[3] / sw;
+      out[idx * 4 + 3] = best[4] / sw;
+      conf[idx] = Math.min(1, best[0] / total);
+    }
+  }
+  return { image: { data: out, width: nx, height: ny }, conf };
+}
+
+/**
+ * 强劲模式的调色板：只用“干净”格子(conf>=0.55)的颜色来建，
+ * 混色格不参与投票，所以描边上的中间灰不会挤进调色板。
+ * wanted>=2 时取指定色数；否则按 Lab 距离 10 自适应归并。
+ */
+function buildStrongPalette(img, conf, wanted, autoK = 24) {
+  const n = img.width * img.height;
+  const collect = (minConf) => {
+    const map = new Map();
+    for (let i = 0; i < n; i++) {
+      if (minConf > 0 && conf && conf[i] < minConf) continue;
+      const p = i * 4;
+      if (img.data[p + 3] === 0) continue;
+      const key = (img.data[p] << 16) | (img.data[p + 1] << 8) | img.data[p + 2];
+      const e = map.get(key);
+      if (e) e.n++;
+      else {
+        const lab = rgbToLab(img.data[p], img.data[p + 1], img.data[p + 2]);
+        map.set(key, { r: img.data[p], g: img.data[p + 1], b: img.data[p + 2], key, n: 1, L: lab[0], A: lab[1], B: lab[2] });
+      }
+    }
+    return [...map.values()];
+  };
+
+  let entries = collect(0.55);
+  if (entries.length < 2) entries = collect(0);
+
+  // 先按 Lab 接近度聚成“颜色区域”，再看区域的面积占比。
+  // 注意不能用“单个精确色”的频次判断主色：软边/噪声会把一块大色域碎成上千个近似色，
+  // 每个精确色的占比都很低，但合起来是整张图最大的区域。
+  const clusters = proximityClusters(entries, 10);
+  const total = clusters.reduce((a, c) => a + c.n, 0);
+  let keep = clusters.filter((c) => c.n / total >= 0.005);
+  if (keep.length < 4) keep = clusters;
+
+  // 再剔除“夹在两个更大色块中间”的色：这正是 50% 抗锯齿混色在 Lab 里的位置特征。
+  // 条件收得很紧（两个父色都至少大 1.5 倍、中点距离 <=10、自身占比 <6%），
+  // 避免把正常的中间调（阴影/高光）误删。
+  keep = keep.filter((c) => {
+    const share = c.n / total;
+    if (share >= 0.06) return true;
+    for (let i = 0; i < keep.length; i++) {
+      const a = keep[i];
+      if (a === c || a.n <= c.n * 1.5) continue;
+      for (let j = i + 1; j < keep.length; j++) {
+        const b = keep[j];
+        if (b === c || b.n <= c.n * 1.5) continue;
+        const dL = (a.seedL + b.seedL) / 2 - c.seedL;
+        const dA = (a.seedA + b.seedA) / 2 - c.seedA;
+        const dB = (a.seedB + b.seedB) / 2 - c.seedB;
+        if (dL * dL + dA * dA + dB * dB <= 100) return false;
+      }
+    }
+    return true;
+  });
+  if (keep.length < 2) keep = clusters.filter((c) => c.n / total >= 0.005);
+  if (keep.length < 2) keep = clusters;
+
+  const k = wanted >= 2 ? wanted : autoK;
+  if (keep.length <= k) return keep.map((c) => labToRgb(c.seedL, c.seedA, c.seedB));
+  const asEntries = keep.map((c) => {
+    const rgb = labToRgb(c.seedL, c.seedA, c.seedB);
+    return { r: rgb[0], g: rgb[1], b: rgb[2], key: (rgb[0] << 16) | (rgb[1] << 8) | rgb[2], n: c.n, L: c.seedL, A: c.seedA, B: c.seedB };
+  });
+  return buildPalette(asEntries, k);
+}
+
+/**
+ * 去孤点：8 邻域里与自己同色的格子少于 minSame 个，就用周围出现最多的颜色替换。
+ * 一条 1px 线的格子至少有 2 个同色邻居，所以线不会被吃掉；只有真正的孤点会消失。
+ */
+function despeckle(img, opts = {}) {
+  const minSame = opts.minSame ?? 2;
+  const share = opts.share ?? 0.0015;
+  const { width: w, height: h } = img;
+  const data = img.data;
+  const out = new Uint8ClampedArray(data);
+  const n = w * h;
+  // 先统计每种颜色占多少格：描边色即使被抗锯齿拆成几种深浅，也是“常见色”，
+  // 绝不能被当成孤点删掉；真正的孤点占比极低。
+  const freq = new Map();
+  for (let i = 0; i < n; i++) {
+    const p = i * 4;
+    const k = (data[p] << 16) | (data[p + 1] << 8) | data[p + 2];
+    freq.set(k, (freq.get(k) || 0) + 1);
+  }
+  const rareMax = Math.max(3, Math.round(n * share));
+  let fixed = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const p = i * 4;
+      const key = (data[p] << 16) | (data[p + 1] << 8) | data[p + 2];
+      let same = 0;
+      const votes = new Map();
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+          const q = (yy * w + xx) * 4;
+          const k2 = (data[q] << 16) | (data[q + 1] << 8) | data[q + 2];
+          if (k2 === key) same++;
+          else {
+            const e = votes.get(k2) || [0, 0, 0, 0, 0];
+            e[0]++;
+            e[1] += data[q];
+            e[2] += data[q + 1];
+            e[3] += data[q + 2];
+            e[4] += data[q + 3];
+            votes.set(k2, e);
+          }
+        }
+      }
+      if (same >= minSame || !votes.size) continue;
+      if ((freq.get(key) || 0) > rareMax) continue;
+      let best = null;
+      for (const e of votes.values()) if (!best || e[0] > best[0]) best = e;
+      if (!best) continue;
+      out[p] = best[1] / best[0];
+      out[p + 1] = best[2] / best[0];
+      out[p + 2] = best[3] / best[0];
+      out[p + 3] = best[4] / best[0];
+      fixed++;
+    }
+  }
+  return { image: { data: out, width: w, height: h }, fixed };
+}
+
+/* -------------------------------------------------- 角色外侧噪点清理 */
+
+/**
+ * 清掉角色轮廓外侧的噪点：
+ *  1) 以外圈格子为种子做区域生长，局部色差容忍（背景渐变/暗角也能整片连通）
+ *  2) 把贴着轮廓的 1~2 圈“混色环”（描边与背景的中间色）并进背景
+ *  3) 删掉背景区域里被背景包住的孤立杂点
+ *  4) 只把 2)、3) 吃到的那部分格子刷成邻近背景色，不动背景本身的层次
+ */
+function cleanOutside(img, opts = {}) {
+  const { width: w, height: h } = img;
+  const data = img.data;
+  const tol = opts.tol ?? 7;        // 区域生长：与父格子的最大 Lab 距离
+  const guard = opts.guard ?? 40;   // 与背景众数色的最大 Lab 距离（防止爬进角色）
+  const ringTol = opts.ringTol ?? 26; // 混色环并进背景时允许的色差
+  const maxRing = opts.maxRing ?? 2;
+  const n = w * h;
+
+  const lab = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const p = i * 4;
+    if (data[p + 3] === 0) continue;
+    const l = rgbToLab(data[p], data[p + 1], data[p + 2]);
+    lab[i * 3] = l[0];
+    lab[i * 3 + 1] = l[1];
+    lab[i * 3 + 2] = l[2];
+  }
+  const dist = (i, j) => {
+    const a = i * 3;
+    const b = j * 3;
+    return Math.hypot(lab[a] - lab[b], lab[a + 1] - lab[b + 1], lab[a + 2] - lab[b + 2]);
+  };
+
+  // 透明背景：外圈若以透明为主，直接按 alpha 处理
+  let borderTotal = 0;
+  let borderAlpha0 = 0;
+  const borderIdx = [];
+  for (let x = 0; x < w; x++) borderIdx.push(x, (h - 1) * w + x);
+  for (let y = 0; y < h; y++) borderIdx.push(y * w, y * w + (w - 1));
+  for (const i of borderIdx) {
+    borderTotal++;
+    if (data[i * 4 + 3] === 0) borderAlpha0++;
+  }
+  const transparentBg = borderAlpha0 > borderTotal * 0.6;
+
+  // 背景众数色（用于 guard）
+  let modeL = 0;
+  let modeA = 0;
+  let modeB = 0;
+  if (!transparentBg) {
+    const buckets = new Map();
+    for (const i of borderIdx) {
+      const p = i * 4;
+      const key = ((data[p] >> 3) << 10) | ((data[p + 1] >> 3) << 5) | (data[p + 2] >> 3);
+      const e = buckets.get(key) || [0, 0, 0, 0];
+      e[0]++;
+      e[1] += lab[i * 3];
+      e[2] += lab[i * 3 + 1];
+      e[3] += lab[i * 3 + 2];
+      buckets.set(key, e);
+    }
+    let best = null;
+    for (const e of buckets.values()) if (!best || e[0] > best[0]) best = e;
+    if (best && best[0]) {
+      modeL = best[1] / best[0];
+      modeA = best[2] / best[0];
+      modeB = best[3] / best[0];
+    }
+  }
+
+  const bg = new Uint8Array(n);
+  const stack = [];
+  const pass = (i) => {
+    if (i < 0 || i >= n || bg[i]) return;
+    if (transparentBg) {
+      if (data[i * 4 + 3] !== 0) return;
+    }
+    bg[i] = 1;
+    stack.push(i);
+  };
+
+  if (transparentBg) {
+    for (const i of borderIdx) pass(i);
+    while (stack.length) {
+      const i = stack.pop();
+      const x = i % w;
+      const y = (i - x) / w;
+      if (x > 0) pass(i - 1);
+      if (x < w - 1) pass(i + 1);
+      if (y > 0) pass(i - w);
+      if (y < h - 1) pass(i + w);
+    }
+  } else {
+    for (const i of borderIdx) {
+      const d = Math.hypot(lab[i * 3] - modeL, lab[i * 3 + 1] - modeA, lab[i * 3 + 2] - modeB);
+      if (d <= guard) pass(i);
+    }
+    while (stack.length) {
+      const i = stack.pop();
+      const x = i % w;
+      const y = (i - x) / w;
+      const push = (j) => {
+        if (bg[j]) return;
+        if (dist(j, i) > tol) return;
+        const d = Math.hypot(lab[j * 3] - modeL, lab[j * 3 + 1] - modeA, lab[j * 3 + 2] - modeB);
+        if (d > guard) return;
+        bg[j] = 1;
+        stack.push(j);
+      };
+      if (x > 0) push(i - 1);
+      if (x < w - 1) push(i + 1);
+      if (y > 0) push(i - w);
+      if (y < h - 1) push(i + w);
+    }
+  }
+
+  // 混色环：贴着背景且与某个背景邻居色差在 ringTol 内 → 并进背景
+  const added = [];
+  for (let passN = 0; passN < maxRing; passN++) {
+    const batch = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (bg[i]) continue;
+        let near = -1;
+        if (x > 0 && bg[i - 1]) near = i - 1;
+        else if (x < w - 1 && bg[i + 1]) near = i + 1;
+        else if (y > 0 && bg[i - w]) near = i - w;
+        else if (y < h - 1 && bg[i + w]) near = i + w;
+        if (near < 0) continue;
+        if (transparentBg ? data[i * 4 + 3] >= 96 : dist(i, near) > ringTol) continue;
+        batch.push(i);
+      }
+    }
+    if (!batch.length) break;
+    for (const i of batch) {
+      bg[i] = 1;
+      added.push(i);
+    }
+  }
+
+  // 背景里被完全包围的孤立杂点
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      if (bg[i]) continue;
+      let around = 0;
+      let total = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          if (!dx && !dy) continue;
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+          total++;
+          if (bg[yy * w + xx]) around++;
+        }
+      }
+      if (total && around === total) {
+        bg[i] = 1;
+        added.push(i);
+      }
+    }
+  }
+
+  // 背景整片刷成同一个背景色：量化产生的色带、渐变、以及残留杂点一起抹平
+  const out = new Uint8ClampedArray(data);
+  if (!transparentBg) {
+    const br = Math.max(0, Math.min(255, Math.round(labToRgb(modeL, modeA, modeB)[0])));
+    const bgc = labToRgb(modeL, modeA, modeB);
+    for (let i = 0; i < n; i++) {
+      if (!bg[i]) continue;
+      out[i * 4] = bgc[0];
+      out[i * 4 + 1] = bgc[1];
+      out[i * 4 + 2] = bgc[2];
+      out[i * 4 + 3] = 255;
+    }
+  }
+  if (transparentBg) {
+    for (const i of added) out.fill(0, i * 4, i * 4 + 4);
+  }
+
+  return { image: { data: out, width: w, height: h }, cleaned: added.length, transparentBg };
+}
+
+/* ------------------------------------------------------------ 主流程 */
+
+function analyze(img, opts = {}) {
+  const o = { ...DEFAULTS, ...opts };
+  const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  const { width: w, height: h } = img;
+  const gray = grayOf(img);
+  const { gx, gy } = gradientProjections(gray, w, h);
+
+  const est = estimateCell(gray, gx, gy, o, w, h);
+  let gridW = o.gridW > 0 ? Math.round(o.gridW) : est.gridW;
+  let gridH = o.gridH > 0 ? Math.round(o.gridH) : est.gridH;
+  const cellW = w / gridW;
+  const cellH = h / gridH;
+
+  const xs = o.forceGrid ? Array.from({length:gridW+1}, (_,i)=>i*w/gridW) : refineLines(w, cellW, gx, o.refine);
+  const ys = o.forceGrid ? Array.from({length:gridH+1}, (_,i)=>i*h/gridH) : refineLines(h, cellH, gy, o.refine);
+
+  const mode = o.sample;
+  const isRegion = mode === 'region';
+  const isStrong = mode === 'strong';
+
+  // 采样式
+  let sampled;
+  let regionPalette = null;
+  if (isRegion) {
+    const st = sampleStrongCells(img, xs, ys);
+    sampled = st.image;
+    regionPalette = buildStrongPalette(sampled, st.conf, o.colors, o.strongColors || 24);
+  } else {
+    // 强劲模式：单像素中心取色（最锐利，1px 描边不会被平均掉）
+    sampled = sampleCells(img, xs, ys, isStrong ? 'center' : mode);
+  }
+
+  let result = sampled;
+  let squared = false;
+  if (!o.forceGrid && o.fixSquare && Math.abs(result.width - result.height) === 1) {
+    result = fixSquare(result);
+    squared = true;
+  }
+
+  const colorsBefore = countColors(result);
+  let colorsAfter = colorsBefore;
+  let cleaned = 0;
+  let speckles = 0;
+
+  if (isRegion) {
+    if (regionPalette && regionPalette.length) result = snapToPalette(result, regionPalette);
+    colorsAfter = countColors(result);
+  } else if (mode === 'outline') {
+    result = cleanOutside(result, { maxRing: 1 }).image;
+    if (o.colors >= 2) result = quantize(result, o.colors).image;
+    colorsAfter = countColors(result);
+  } else if (isStrong) {
+    // 32 色（跟随「颜色数」选择，未选则默认 32）
+    const k = o.colors >= 2 ? o.colors : o.strongColors || 32;
+    if (colorsAfter > k) result = quantize(result, k).image;
+    // 先去掉孤点，再清掉角色轮廓外侧的混色环 + 把背景刷平
+    const ds = despeckle(result, { minSame: 2 });
+    result = ds.image;
+    const cc = cleanOutside(result, { tol: o.bgTol, guard: o.bgGuard, ringTol: o.ringTol });
+    result = cc.image;
+    cleaned = cc.cleaned;
+    speckles = ds.fixed;
+    colorsAfter = countColors(result);
+  } else if (o.colors >= 2 && colorsAfter > o.colors) {
+    result = quantize(result, o.colors).image;
+    colorsAfter = countColors(result);
+  }
+
+  const palette = paletteOf(result, 64);
+  const t1 = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  return {
+    image: result,
+    xs,
+    ys,
+    gridW,
+    gridH,
+    cellW,
+    cellH,
+    outW: result.width,
+    outH: result.height,
+    method: o.gridW > 0 ? 'manual' : est.method,
+    confidence: o.gridW > 0 ? 1 : est.confidence,
+    squared,
+    colorsBefore,
+    colorsAfter,
+    palette,
+    cleaned,
+    speckles,
+    ms: Math.round(t1 - t0),
+  };
+}
+
+/* ---------------------------------------------------- CIELab 色差空间 */
+
+const SRGB_LIN = (() => {
+  const t = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const c = i / 255;
+    t[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  }
+  return t;
+})();
+
+/** sRGB → CIELab（D65）。感知均匀，用来替代 RGB 欧氏距离。 */
+function rgbToLab(r, g, b) {
+  const R = SRGB_LIN[r | 0];
+  const G = SRGB_LIN[g | 0];
+  const B = SRGB_LIN[b | 0];
+  let x = (0.4124564 * R + 0.3575761 * G + 0.1804375 * B) / 0.95047;
+  let y = 0.2126729 * R + 0.7151522 * G + 0.072175 * B;
+  let z = (0.0193339 * R + 0.119192 * G + 0.9503041 * B) / 1.08883;
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  x = f(x);
+  y = f(y);
+  z = f(z);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+
+/** CIELab → sRGB */
+function labToRgb(L, a, bb) {
+  const fy = (L + 16) / 116;
+  const fx = fy + a / 500;
+  const fz = fy - bb / 200;
+  const finv = (t) => {
+    const t3 = t * t * t;
+    return t3 > 0.008856 ? t3 : (t - 16 / 116) / 7.787;
+  };
+  const x = finv(fx) * 0.95047;
+  const y = finv(fy);
+  const z = finv(fz) * 1.08883;
+  const R = 3.2404542 * x - 1.5371385 * y - 0.4985314 * z;
+  const G = -0.969266 * x + 1.8760108 * y + 0.041556 * z;
+  const B = 0.0556434 * x - 0.2040259 * y + 1.0572252 * z;
+  const enc = (c) => {
+    const v = c <= 0.0031308 ? 12.92 * c : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+    return Math.max(0, Math.min(255, Math.round(v * 255)));
+  };
+  return [enc(R), enc(G), enc(B)];
+}
+
+/* ---------------------------------------------------------- 颜色统计 */
+
+/** 统计 alpha>0 的唯一 RGB 色数。 */
+function countColors(img) {
+  const { data } = img;
+  const set = new Set();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    set.add((data[i] << 16) | (data[i + 1] << 8) | data[i + 2]);
+  }
+  return set.size;
+}
+
+/** 按出现次数排序的调色板（最多 limit 项）：[[r,g,b,count], ...] */
+function paletteOf(img, limit = 64) {
+  const { data } = img;
+  const map = new Map();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const key = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+    map.set(key, (map.get(key) || 0) + 1);
+  }
+  return [...map.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([k, n]) => [(k >> 16) & 255, (k >> 8) & 255, k & 255, n]);
+}
+
+/* ------------------------------------------------------------ 限色 */
+
+function makeBox(items) {
+  let minL = 1e9, maxL = -1e9, minA = 1e9, maxA = -1e9, minB = 1e9, maxB = -1e9;
+  let count = 0, sumL = 0, sumA = 0, sumB = 0;
+  for (const c of items) {
+    if (c.L < minL) minL = c.L;
+    if (c.L > maxL) maxL = c.L;
+    if (c.A < minA) minA = c.A;
+    if (c.A > maxA) maxA = c.A;
+    if (c.B < minB) minB = c.B;
+    if (c.B > maxB) maxB = c.B;
+    count += c.n;
+    sumL += c.L * c.n;
+    sumA += c.A * c.n;
+    sumB += c.B * c.n;
+  }
+  const dL = maxL - minL;
+  const dA = maxA - minA;
+  const dB = maxB - minB;
+  const ch = dL >= dA && dL >= dB ? 'L' : dA >= dB ? 'A' : 'B';
+  return { items, count, sumL, sumA, sumB, ch, span: Math.max(dL, dA, dB) };
+}
+
+function splitBox(box) {
+  const ch = box.ch;
+  const items = box.items.slice().sort((a, b) => a[ch] - b[ch] || a.key - b.key);
+  const half = box.count / 2;
+  let acc = 0;
+  let cut = items.length >> 1;
+  for (let i = 0; i < items.length; i++) {
+    acc += items[i].n;
+    if (acc >= half) {
+      cut = i + 1;
+      break;
+    }
+  }
+  cut = Math.max(1, Math.min(items.length - 1, cut));
+  return [makeBox(items.slice(0, cut)), makeBox(items.slice(cut))];
+}
+
+function medianCut(all, maxColors) {
+  const boxes = [makeBox(all)];
+  while (boxes.length < maxColors) {
+    let target = -1;
+    let bestScore = 0;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      if (b.items.length < 2 || b.span <= 0) continue;
+      const score = b.span * b.count;
+      if (score > bestScore) {
+        bestScore = score;
+        target = i;
+      }
+    }
+    if (target < 0) break;
+    const parts = splitBox(boxes[target]);
+    if (!parts[0].items.length || !parts[1].items.length) break;
+    boxes.splice(target, 1, parts[0], parts[1]);
+  }
+  return boxes;
+}
+
+/** Lab 空间层次合并：反复并掉“加权 SSE 增量最小”的一对簇，直到只剩 maxColors 个。 */
+function agglomerative(all, maxColors) {
+  const cl = all.map((c) => ({ L: c.L, A: c.A, B: c.B, n: c.n }));
+  const stride = cl.length;
+  let m = cl.length;
+  const D = new Float64Array(stride * stride);
+  const dist = (a, b) => {
+    const n = a.n + b.n;
+    if (!n) return 0;
+    return ((a.n * b.n) / n) * ((a.L - b.L) ** 2 + (a.A - b.A) ** 2 + (a.B - b.B) ** 2);
+  };
+  for (let i = 0; i < m; i++) {
+    for (let j = i + 1; j < m; j++) {
+      const d = dist(cl[i], cl[j]);
+      D[i * stride + j] = d;
+      D[j * stride + i] = d;
+    }
+  }
+  while (m > maxColors) {
+    let bi = 0;
+    let bj = 1;
+    let bd = Infinity;
+    for (let i = 0; i < m; i++) {
+      for (let j = i + 1; j < m; j++) {
+        const d = D[i * stride + j];
+        if (d < bd) {
+          bd = d;
+          bi = i;
+          bj = j;
+        }
+      }
+    }
+    const A = cl[bi];
+    const B = cl[bj];
+    const n = A.n + B.n;
+    cl[bi] = {
+      L: (A.L * A.n + B.L * B.n) / n,
+      A: (A.A * A.n + B.A * B.n) / n,
+      B: (A.B * A.n + B.B * B.n) / n,
+      n,
+    };
+    const last = m - 1;
+    if (bj !== last) {
+      cl[bj] = cl[last];
+      for (let i = 0; i < m; i++) {
+        D[bj * stride + i] = D[last * stride + i];
+        D[i * stride + bj] = D[i * stride + last];
+      }
+    }
+    m--;
+    for (let i = 0; i < m; i++) {
+      if (i === bi) continue;
+      const d = dist(cl[bi], cl[i]);
+      D[bi * stride + i] = d;
+      D[i * stride + bi] = d;
+    }
+  }
+  return cl.slice(0, m).map((c) => labToRgb(c.L, c.A, c.B));
+}
+
+function lloydRefine(paletteLab, all) {
+  const pal = paletteLab.map((x) => x.slice());
+  for (let it = 0; it < 10; it++) {
+    const sums = pal.map(() => [0, 0, 0, 0]);
+    for (const c of all) {
+      let bi = 0;
+      let bd = Infinity;
+      for (let i = 0; i < pal.length; i++) {
+        const p = pal[i];
+        const d = (c.L - p[0]) ** 2 + (c.A - p[1]) ** 2 + (c.B - p[2]) ** 2;
+        if (d < bd) {
+          bd = d;
+          bi = i;
+        }
+      }
+      const sm = sums[bi];
+      sm[0] += c.L * c.n;
+      sm[1] += c.A * c.n;
+      sm[2] += c.B * c.n;
+      sm[3] += c.n;
+    }
+    let moved = false;
+    for (let i = 0; i < pal.length; i++) {
+      const sm = sums[i];
+      if (!sm[3]) continue;
+      const L = sm[0] / sm[3];
+      const A = sm[1] / sm[3];
+      const B = sm[2] / sm[3];
+      if (Math.abs(L - pal[i][0]) > 0.01 || Math.abs(A - pal[i][1]) > 0.01 || Math.abs(B - pal[i][2]) > 0.01) moved = true;
+      pal[i] = [L, A, B];
+    }
+    if (!moved) break;
+  }
+  return pal.map((x) => labToRgb(x[0], x[1], x[2]));
+}
+
+function buildPalette(all, maxColors) {
+  if (all.length <= 320) return agglomerative(all, maxColors);
+  const boxes = medianCut(all, maxColors);
+  const paletteLab = boxes.map((b) => [b.sumL / b.count, b.sumA / b.count, b.sumB / b.count]);
+  return lloydRefine(paletteLab, all);
+}
+
+/** 按“与已有簇中心 Lab 距离 < T”贪心归并；先扫高频色，AA 混色会被吸进主色。 */
+function proximityClusters(entries, T) {
+  const sorted = entries.slice().sort((a, b) => b.n - a.n || a.key - b.key);
+  const clusters = [];
+  const t2 = T * T;
+  for (const c of sorted) {
+    let best = null;
+    let bd = t2;
+    for (const cl of clusters) {
+      const d = (c.L - cl.L) ** 2 + (c.A - cl.A) ** 2 + (c.B - cl.B) ** 2;
+      if (d < bd) {
+        bd = d;
+        best = cl;
+      }
+    }
+    if (best) {
+      const n = best.n + c.n;
+      best.L = (best.L * best.n + c.L * c.n) / n;
+      best.A = (best.A * best.n + c.A * c.n) / n;
+      best.B = (best.B * best.n + c.B * c.n) / n;
+      best.n = n;
+    } else {
+      clusters.push({ L: c.L, A: c.A, B: c.B, n: c.n, seedL: c.L, seedA: c.A, seedB: c.B });
+    }
+  }
+  return clusters;
+}
+
+function groupByProximity(entries, T) {
+  return proximityClusters(entries, T).map((c) => labToRgb(c.seedL, c.seedA, c.seedB));
+}
+
+function labEntries(img) {
+  const { data } = img;
+  const map = new Map();
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const key = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+    const e = map.get(key);
+    if (e) e.n++;
+    else {
+      const lab = rgbToLab(data[i], data[i + 1], data[i + 2]);
+      map.set(key, { r: data[i], g: data[i + 1], b: data[i + 2], key, n: 1, L: lab[0], A: lab[1], B: lab[2] });
+    }
+  }
+  return [...map.values()];
+}
+
+/** 把每个像素吸到调色板里 Lab 最近的颜色上。 */
+function snapToPalette(img, palette) {
+  if (!palette || !palette.length) return img;
+  const palLab = palette.map((p) => rgbToLab(p[0], p[1], p[2]));
+  const lut = new Map();
+  const { data, width, height } = img;
+  const out = new Uint8ClampedArray(data.length);
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) {
+      out[i + 3] = 0;
+      continue;
+    }
+    const key = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+    let p = lut.get(key);
+    if (!p) {
+      const L = rgbToLab(data[i], data[i + 1], data[i + 2]);
+      let bi = 0;
+      let bd = Infinity;
+      for (let k = 0; k < palLab.length; k++) {
+        const q = palLab[k];
+        const d = (L[0] - q[0]) ** 2 + (L[1] - q[1]) ** 2 + (L[2] - q[2]) ** 2;
+        if (d < bd) {
+          bd = d;
+          bi = k;
+        }
+      }
+      p = palette[bi];
+      lut.set(key, p);
+    }
+    out[i] = p[0];
+    out[i + 1] = p[1];
+    out[i + 2] = p[2];
+    out[i + 3] = data[i + 3];
+  }
+  return { data: out, width, height };
+}
+
+/**
+ * 限色（CIELab 空间）：唯一色 ≤320 走层次合并，否则中位切分 + Lloyd 精修。
+ * 合并与吸附都用 Lab 距离，避免 RGB 把“深藏青 vs 纯黑”判得过近导致发灰。
+ */
+function quantize(img, maxColors) {
+  const all = labEntries(img);
+  const before = all.length;
+  if (!before) return { image: img, before: 0, after: 0, palette: [] };
+  if (!(maxColors >= 2) || before <= maxColors) {
+    return { image: img, before, after: before, palette: all.map((c) => [c.r, c.g, c.b]) };
+  }
+  const palette = buildPalette(all, maxColors);
+  const outImg = snapToPalette(img, palette);
+  const seen = new Set();
+  const uniq = [];
+  for (const p of palette) {
+    const k = (p[0] << 16) | (p[1] << 8) | p[2];
+    if (seen.has(k)) continue;
+    seen.add(k);
+    uniq.push(p);
+  }
+  return { image: outImg, before, after: countColors(outImg), palette: uniq };
+}
+
+/** 上游 fix_square 的移植：差一列/行时补齐成正方形。 */
+function fixSquare(img) {
+  const { data, width: w, height: h } = img;
+  if (w > h) {
+    if (w % 2 === 1) return cropCols(img, w - 1);
+    return dupFirstRow(img);
+  }
+  if (h % 2 === 1) return cropRows(img, h - 1);
+  return dupFirstCol(img);
+}
+
+function cropCols(img, nw) {
+  const { data, width: w, height: h } = img;
+  const out = new Uint8ClampedArray(nw * h * 4);
+  for (let y = 0; y < h; y++) {
+    out.set(data.subarray(y * w * 4, y * w * 4 + nw * 4), y * nw * 4);
+  }
+  return { data: out, width: nw, height: h };
+}
+
+function cropRows(img, nh) {
+  const { data, width: w } = img;
+  return { data: data.slice(0, w * nh * 4), width: w, height: nh };
+}
+
+function dupFirstRow(img) {
+  const { data, width: w, height: h } = img;
+  const out = new Uint8ClampedArray(w * (h + 1) * 4);
+  out.set(data.subarray(0, w * 4), 0);
+  out.set(data, w * 4);
+  return { data: out, width: w, height: h + 1 };
+}
+
+function dupFirstCol(img) {
+  const { data, width: w, height: h } = img;
+  const out = new Uint8ClampedArray((w + 1) * h * 4);
+  for (let y = 0; y < h; y++) {
+    const src = y * w * 4;
+    const dst = y * (w + 1) * 4;
+    out.set(data.subarray(src, src + 4), dst);
+    out.set(data.subarray(src, src + w * 4), dst + 4);
+  }
+  return { data: out, width: w + 1, height: h };
+}
+
+/* ------------------------------------------------------------- 放大/导出 */
+
+function scaleNearest(img, nw, nh) {
+  const { data, width: w, height: h } = img;
+  const out = new Uint8ClampedArray(nw * nh * 4);
+  for (let y = 0; y < nh; y++) {
+    const sy = Math.min(h - 1, Math.floor((y * h) / nh));
+    for (let x = 0; x < nw; x++) {
+      const sx = Math.min(w - 1, Math.floor((x * w) / nw));
+      const s = (sy * w + sx) * 4;
+      const d = (y * nw + x) * 4;
+      out[d] = data[s]; out[d + 1] = data[s + 1]; out[d + 2] = data[s + 2]; out[d + 3] = data[s + 3];
+    }
+  }
+  return { data: out, width: nw, height: nh };
+}
+
+/** 整数倍放大（像素完美）；非整除时退回最近邻。 */
+function scaleToSquare(img, size) {
+  const f = Math.max(1, Math.floor(size / Math.max(img.width, img.height)));
+  if (img.width * f === size && img.height * f === size) {
+    return { image: scaleNearest(img, size, size), factor: f, exact: true };
+  }
+  return { image: scaleNearest(img, size, size), factor: size / Math.max(img.width, img.height), exact: false };
+}
+
+
+/* ============ app.js ============ */
+/* Perfect Pixel 192 — editor UI */
+
+
+const $ = (sel) => document.querySelector(sel);
+
+const isExt = typeof chrome !== 'undefined' && !!(chrome.runtime && chrome.runtime.id);
+
+const METHOD_LABEL = {
+  'block-boundary': '块边界一致性',
+  'fft-autocorr': 'FFT 自相关',
+  'gradient-interval': '梯度峰间隔',
+  comb: '梳状搜索',
+  'square-guess': '正方形推断',
+  fallback: '退化回退',
+  manual: '手动指定',
+};
+
+const SAMPLE_HINT = {
+  outline: '格内众数取色，先清理与画布边缘连通的背景，再限色。适合简单背景的单角色。',
+  core: '只平均格子中央 50% 区域，避开 AI/JPEG 产生的软边混色环。',
+  strong: '单像素中心取色（最锐利，1px 描边不会被平均掉）→ 限到 32 色 → 去掉孤点 → 把轮廓外侧的混色环并进背景、背景刷平。适合出成品图。',
+  region: '中心加权众数取色 + 只保留"占面积的纯色区域"建调色板，再把每格吸附过去。描边整体发灰时用它，但颜色会比强劲模式少。',
+  center: '直接取格子正中心那一个像素，边缘最锐利，但更容易被噪点带偏。',
+  majority: '格内颜色直方图取众数（32 级分桶），对噪声与轻微网格偏移更稳。',
+  median: '逐通道取中位数，即上游 perfectPixel 的默认行为。',
+};
+
+const state = {
+  bitmap: null,
+  src: null,
+  res: null,
+  key: 0,
+  opts: { largeGrid:false, gridRatio:1, forceGrid:true, sample2: '', sample: 'center', refine: 0.25, fixSquare: true, colors: 0, gridW: 0, gridH: 0, minCell: 2, maxCell: 64 },
+  mode: 'auto',
+  wipe: 100,
+  panX:0, panY:0, zoom: 1,
+  fit: 1,
+  grid: true,
+  target: '192',
+  disp: { w: 0, h: 0 },
+};
+
+let resultKey = -1;
+
+/* --------------------------------------------------------------- 示例 */
+
+const DEMO_PAL = [
+  [26, 28, 44], [93, 39, 93], [177, 62, 83], [239, 125, 87],
+  [255, 205, 117], [167, 240, 112], [56, 183, 100], [37, 113, 121],
+  [41, 54, 111], [59, 93, 201], [65, 166, 246], [115, 239, 247],
+  [244, 244, 244], [148, 176, 194], [86, 108, 134], [51, 60, 87],
+];
+
+/** 造一张 192×192、32×32 格的"AI 味"像素图：同心环 + 抖动 + 1px 软边。 */
+function makeDemo() {
+  const GW = 32;
+  const CELL = 6;
+  const W = GW * CELL;
+  let seed = 20260401;
+  const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = W;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(W, W);
+  const d = img.data;
+  for (let y = 0; y < W; y++) {
+    for (let x = 0; x < W; x++) {
+      const dx = x - W / 2 + 0.5;
+      const dy = y - W / 2 + 0.5;
+      const r = Math.sqrt(dx * dx + dy * dy);
+      const ang = Math.atan2(dy, dx);
+      const k = Math.floor(r / 5.2 + Math.sin(ang * 3) * 0.6 + rnd() * 0.75) & 15;
+      const col = DEMO_PAL[k];
+      const p = (y * W + x) * 4;
+      d[p] = col[0];
+      d[p + 1] = col[1];
+      d[p + 2] = col[2];
+      d[p + 3] = 255;
+    }
+  }
+  // 1px 盒式模糊 + 轻微噪声，模拟 AI 生成 / JPEG 压缩后的软边
+  const out = new Uint8ClampedArray(d.length);
+  for (let y = 0; y < W; y++) {
+    for (let x = 0; x < W; x++) {
+      let r = 0, g = 0, b = 0, n = 0;
+      for (let k = -1; k <= 1; k++) {
+        for (let j = -1; j <= 1; j++) {
+          const yy = Math.min(W - 1, Math.max(0, y + k));
+          const xx = Math.min(W - 1, Math.max(0, x + j));
+          const p = (yy * W + xx) * 4;
+          r += d[p]; g += d[p + 1]; b += d[p + 2]; n++;
+        }
+      }
+      const p = (y * W + x) * 4;
+      const nz = (rnd() * 2 - 1) * 4;
+      out[p] = r / n + nz;
+      out[p + 1] = g / n + nz;
+      out[p + 2] = b / n + nz;
+      out[p + 3] = 255;
+    }
+  }
+  img.data.set(out);
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+/* --------------------------------------------------------------- 载入 */
+
+const canvases = [];
+let active = null;
+let serial = 0;
+
+function settings() {
+  return { opts:{...state.opts}, mode:state.mode, target:state.target,
+    gw:$('#gridW').value, gh:$('#gridH').value, edits:[...edits], stack, layerId };
+}
+
+function remember() {
+  if (!active) return;
+  const next = settings();
+  if (JSON.stringify(next) === JSON.stringify(active.settings)) return;
+  active.history.push(active.settings);
+  if (active.history.length > 50) active.history.shift();
+  active.settings = next;
+  drawTabs();
+}
+
+function drawTabs() {
+  const box = $('#tabs');
+  box.replaceChildren();
+  for (const tab of canvases) {
+    const b = document.createElement('button');
+    b.textContent = '画布 ' + tab.id;
+    b.title = tab.name;
+    b.setAttribute('aria-current', String(tab === active));
+    b.onclick = () => activate(tab);
+    const group = document.createElement('span');
+    const close = document.createElement('button');
+    close.textContent = '×';
+    close.title = '关闭画布 ' + tab.id;
+    close.setAttribute('aria-label', close.title);
+    close.onclick = () => closeCanvas(tab);
+    close.className = "tab-close";
+    group.append(b,close);
+    box.append(group);
+  }
+  $('#undo').disabled = !active || (!active.history.length && !active.parent);
+}
+
+function updateGridFactors() {
+  const dims=[$('#gridW'),$('#gridH')];
+  for(const b of $('#gridFactors').children) {
+    const target=dims.map(el=>Math.max(1,Math.round(el.valueAsNumber*Number(b.dataset.factor))));
+    const valid=dims.every(el=>el.value && el.validity.valid);
+    b.disabled=!valid || target.some((n,i)=>n>Number(dims[i].max));
+    b.querySelector('small').textContent=valid ? target.join('×') : '—';
+  }
+}
+
+function activate(tab) {
+  if (active) active.view = {panX:state.panX, panY:state.panY, zoom:state.zoom, grid:state.grid, wipe:state.wipe};
+  active = tab;
+  const q = tab.settings;
+  Object.assign(state, tab.view, {bitmap:tab.bitmap, src:tab.src, name:tab.name,
+    opts:{...q.opts}, mode:q.mode, target:q.target, res:null});
+  base = null;
+  layers = tab.strokes; stack=q.stack; layerId=q.layerId; drawLayerList();
+  edits.clear();
+  for (const [key,value] of q.edits) edits.set(key,value);
+  $('#sample').value = q.opts.sample;
+  $('#sample2').value = q.opts.sample2;
+  $('#sampleHint').textContent = SAMPLE_HINT[q.opts.sample];
+  $('#gridLink').setAttribute('aria-pressed',String(!!q.opts.gridRatio));
+  syncLargeGrid(q.opts.largeGrid);
+  $('#gridW').value = q.gw;
+  $('#gridH').value = q.gh;
+  updateGridFactors();
+  $('#manualBox').hidden = q.mode !== 'manual';
+  $('#refine').value = Math.round(q.opts.refine*100);
+  $('#refineNum').textContent = $('#refine').value+'%';
+  syncForceGrid(q.opts.forceGrid);
+  $('#fixSquare').checked = q.opts.fixSquare;
+  $('#target').value = q.target;
+  $('#showGrid').checked = state.grid;
+  $('#wipe').value = state.wipe;
+  for (const b of $('#colorSeg').children) b.classList.toggle('on',Number(b.dataset.colors)===q.opts.colors);
+  for (const b of $('#modeSeg').children) b.classList.toggle('on',b.dataset.mode===q.mode);
+  drawTabs();
+  reprocess();
+}
+
+function closeCanvas(tab, next = null) {
+  const index = canvases.indexOf(tab);
+  canvases.splice(index,1);
+  for (const child of canvases) if (child.parent === tab) child.parent = tab.parent;
+  if (active === tab) {
+    const fallback = next || canvases[index] || canvases[index-1];
+    if (fallback) activate(fallback);
+    else {
+      active = base = null;
+      Object.assign(state,{src:null,bitmap:null,res:null,name:''});
+      edits.clear();
+      for (const id of ['cvSrc','cvRes','cvGrid']) $('#'+id).width = 1;
+      $('#empty').hidden = false; $('#guideGrid').style.display='none'; drawLayerList();
+      $('#palette').replaceChildren();
+      $('#notes').replaceChildren();
+      for (const el of document.querySelectorAll('dd, #targetHint, #colorHint')) el.textContent = '—';
+    }
+  }
+  tab.bitmap.close?.();
+  drawTabs();
+}
+
+function undoEdit() {
+  if (!active) return;
+  if (active.history.length) {
+    active.settings = active.history.pop();
+    activate(active);
+  } else if (active.parent) {
+    closeCanvas(active, active.parent);
+  }
+}
+
+async function loadImage(source, name = '') {
+  try {
+    const bmp = source instanceof Blob ? await createImageBitmap(source) : source;
+    if (!bmp || !bmp.width) throw new Error('无法解析这张图片');
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(bmp, 0, 0);
+    const src = ctx.getImageData(0, 0, c.width, c.height);
+    const tab = {id:++serial, parent:active, history:[], strokes:[], canvasHistory:[], nextLayer:1, bitmap:bmp, src, name,
+      settings:{...settings(), edits:[],stack:[{id:0,name:"采样层",visible:true}],layerId:0}, view:{panX:0,panY:0,zoom:1,grid:state.grid,wipe:100}};
+    canvases.push(tab);
+    activate(tab);
+    $('#empty').hidden = true;
+    $('#urlHint').textContent = '跨域图片需要该站点允许读取，否则请改用拖拽或粘贴。';
+    $('#urlHint').classList.remove('bad');
+  } catch (e) {
+    setUrlHint(`载入失败：${e.message}`, true);
+  }
+}
+
+function reprocess() {
+  if (!state.src) return;
+  if (state.mode === 'manual' && ![$('#gridW'),$('#gridH')].every(el=>el.value && el.validity.valid)) {
+    $('#notes').replaceChildren();
+    addNote(`横向和纵向格数必须是 1 到 ${$('#gridW').max} 的整数。`,'warn');
+    return;
+  }
+  remember();
+  const owner = active;
+  const gw = Number($('#gridW').value), gh = Number($('#gridH').value);
+  $('#busy').hidden = false;
+  // 让 busy 提示先绘制出来，再做同步计算
+  requestAnimationFrame(() => {
+    try {
+      if (active !== owner) return;
+      const opts = { ...state.opts };
+      if (state.mode === 'manual') {
+        opts.gridW = gw;
+        opts.gridH = gh;
+      } else {
+        opts.gridW = 0;
+        opts.gridH = 0;
+      }
+      base = analyze(state.src, opts);
+      if (opts.sample2) {
+        const first = base;
+        const grid = {gridW:first.image.width, gridH:first.image.height, refine:0, fixSquare:false};
+        const second = analyze(first.image, {...opts, sample:opts.sample2, ...grid});
+        base = {...second, xs:first.xs, ys:first.ys, cellW:first.cellW, cellH:first.cellH,
+          gridW:first.gridW, gridH:first.gridH, method:first.method, confidence:first.confidence,
+          ms:first.ms+second.ms};
+      }
+      applyEdits();
+      state.key += 1;
+      $('#notes').innerHTML = '';
+      renderAll();
+    } catch (e) {
+      console.error(e);
+      addNote(`处理失败：${e.message}`, 'bad');
+    } finally {
+      $('#busy').hidden = true;
+    }
+  });
+}
+
+/* --------------------------------------------------------------- 渲染 */
+
+function measure() {
+  const box = $('#dz').getBoundingClientRect();
+  const { width: W, height: H } = state.src;
+  const availW = Math.max(80, box.width - 26);
+  const availH = Math.max(80, box.height - 26);
+  state.fit = Math.min(availW / W, availH / H);
+  const scale = Math.max(0.04, Math.min(state.fit, 24));
+  return {
+    w: Math.max(1, Math.round(W * scale)),
+    h: Math.max(1, Math.round(H * scale)),
+  };
+}
+
+function sizeCanvas(canvas, w, h) {
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.max(1, Math.round(w * dpr));
+  canvas.height = Math.max(1, Math.round(h * dpr));
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+  return ctx;
+}
+
+function renderAll() {
+  if (!state.src) return;
+  const { w, h } = measure();
+  state.disp = { w, h };
+
+  const srcCtx = sizeCanvas($('#cvSrc'), w, h);
+  srcCtx.clearRect(0, 0, w, h);
+  srcCtx.drawImage(state.bitmap, 0, 0, w, h);
+
+  const resultCanvas = $('#cvRes');
+  resultCanvas.style.width = w+'px';
+  resultCanvas.style.height = h+'px';
+  if (state.res && resultKey !== state.key) {
+    const img = state.res.image;
+    resultCanvas.width = img.width;
+    resultCanvas.height = img.height;
+    resultCanvas.getContext('2d').putImageData(
+      new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0);
+    resultKey = state.key;
+  }
+
+  const gridCtx = sizeCanvas($('#cvGrid'), w, h);
+  gridCtx.clearRect(0, 0, w, h);
+  const guide = $('#guideGrid');
+  guide.style.display = state.grid && state.res ? 'block' : 'none';
+  if (state.grid && state.res) {
+    const {gridW, gridH} = state.res;
+    guide.style.width = w+'px';
+    guide.style.height = h+'px';
+    const key = gridW+'x'+gridH;
+    if (guide.dataset.grid !== key) {
+      guide.setAttribute('viewBox', `0 0 ${gridW} ${gridH}`);
+      guide.setAttribute('preserveAspectRatio', 'none');
+      const lines = [];
+      for (let x=0; x<=gridW; x++) lines.push(`M${x} 0V${gridH}`);
+      for (let y=0; y<=gridH; y++) lines.push(`M0 ${y}H${gridW}`);
+      guide.firstElementChild.setAttribute('d',lines.join(' '));
+      guide.dataset.grid = key;
+    }
+  }
+
+  const img=state.res?.image;
+  if(img) {
+    const d=drawing;
+    gridCtx.save(); gridCtx.scale(w/img.width,h/img.height);
+    if(d?.tool==='paint') {
+      gridCtx.fillStyle=d.color[3] ? 'rgba('+d.color.slice(0,3).join(',')+','+d.color[3]/255+')' : '#ff5486';
+      for(const i of d.pixels) gridCtx.fillRect(i%img.width,Math.floor(i/img.width),1,1);
+    }
+    const path=d?.tool==='lasso' ? selectionPath(d.points) : selectedPath();
+    if(path) { gridCtx.lineWidth=1.5*img.width/w; gridCtx.strokeStyle='#ff477b'; gridCtx.stroke(path); }
+    gridCtx.restore();
+  }
+  applyWipe();
+  updateDiag();
+  updateColors();
+  updateTargetHint();
+  positionView();
+}
+
+function positionView() {
+  const dz = $('#dz');
+  dz.style.setProperty('--pan-x',state.panX+'px');
+  dz.style.setProperty('--pan-y',state.panY+'px');
+  dz.style.setProperty('--zoom',state.zoom);
+  $('#zoomLabel').textContent = state.zoom === 1 ? '适应' : `${Math.round(state.zoom * 100)}%`;
+}
+
+/* --------------------------------------------------------------- 颜色 */
+
+function hexOf(r, g, b) {
+  return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
+}
+
+let base, selected, priorEdit;
+const edits = new Map();
+let layers = [], drawing = null, brushAlpha = 255;
+
+function applyEdits() {
+  state.res = base;
+  if (!edits.size && !layers.length && stack.length===1 && stack[0].id===0 && stack[0].visible) return;
+  const data = new Uint8ClampedArray(base.image.data);
+  for (let i = 0; i < data.length; i += 4) {
+    if (!data[i+3]) continue;
+    const e = edits.get(hexOf(data[i], data[i+1], data[i+2]));
+    if (!e) continue;
+    data.set(e.rgb, i);
+    data[i+3] = Math.round(data[i+3] * e.opacity / 100);
+  }
+  const merged=new Uint8ClampedArray(data.length);
+  for(const layer of stack) {
+    if(!layer.visible) continue;
+    const plane=layer.id===0 ? data : new Uint8ClampedArray(data.length);
+    for(const stroke of layers) {
+      if(stroke.id!==layer.id || stroke.w!==base.image.width || stroke.h!==base.image.height) continue;
+      for(const i of stroke.pixels) plane.set(stroke.color,i*4);
+    }
+    for(let i=0;i<plane.length;i+=4) {
+      const alpha=plane[i+3]/255;
+      if(!alpha)continue;
+      const below=merged[i+3]/255*(1-alpha), total=alpha+below;
+      for(let c=0;c<3;c++) merged[i+c]=(plane[i+c]*alpha+merged[i+c]*below)/total;
+      merged[i+3]=total*255;
+    }
+  }
+  const image = { ...base.image, data:merged };
+  state.res = { ...base, image, colorsAfter: countColors(image) };
+}
+
+let stack = [], layerId = 0;
+
+function drawLayerList() {
+  const list=$('#layerList');
+  list.replaceChildren();
+  if(!active) return;
+  for(const layer of [...stack].reverse()) {
+    const row=document.createElement('div');
+    for(const [label,title,action,disabled] of [
+      [layer.visible?'◉':'○',layer.visible?'隐藏图层':'显示图层',()=>changeLayers(stack.map(l=>l===layer?{...l,visible:!l.visible}:l))],
+      [layer.name,'选择图层',()=>{layerId=layer.id; active.settings={...active.settings,layerId};drawLayerList();}],
+      ['↑','提高优先级',()=>moveLayer(layer,1),layer===stack.at(-1)],
+      ['↓','降低优先级',()=>moveLayer(layer,-1),layer===stack[0]],
+      ['🗑','删除'+layer.name,()=>deleteLayer(layer),stack.length===1]
+    ]) {
+      const b=document.createElement('button');
+      b.textContent=label;b.title=title;b.disabled=!!disabled;b.onclick=action;
+      if(label===layer.name)b.setAttribute('aria-pressed',String(layer.id===layerId));
+      row.append(b);
+    }
+    list.append(row);
+  }
+}
+
+function changeLayers(next) {
+  stack=next; applyEdits();state.key++;remember();drawLayerList();renderAll();
+}
+
+function deleteLayer(layer) {
+  if(stack.length<2) return;
+  const index=stack.indexOf(layer);
+  const next=stack.filter(item=>item!==layer);
+  if(layerId===layer.id) layerId=next[Math.min(index,next.length-1)].id;
+  changeLayers(next);
+}
+
+function moveLayer(layer,delta) {
+  const next=[...stack], i=next.indexOf(layer);
+  [next[i],next[i+delta]]=[next[i+delta],next[i]];
+  changeLayers(next);
+}
+
+function bucketFill(x,y) {
+  const {width:w,height:h,data}=state.res.image;
+  const path=selectedPath();
+  const ctx=path && document.createElement('canvas').getContext('2d');
+  const seed=y*w+x, rgba=data.slice(seed*4,seed*4+4);
+  const pixels=[], seen=new Uint8Array(w*h);
+  function visit(i) {
+    if(seen[i]) return;
+    seen[i]=1;
+    if(path && !ctx.isPointInPath(path,i%w+.5,Math.floor(i/w)+.5)) return;
+    const j=i*4;
+    if(data[j+3]!==rgba[3] || (rgba[3] && (data[j]!==rgba[0] || data[j+1]!==rgba[1] || data[j+2]!==rgba[2]))) return;
+    pixels.push(i);
+  }
+  visit(seed);
+  for(let n=0;n<pixels.length;n++) {
+    const i=pixels[n];
+    if(i%w) visit(i-1);
+    if(i%w<w-1) visit(i+1);
+    if(i>=w) visit(i-w);
+    if(i+w<w*h) visit(i+w);
+  }
+  recordPixels(pixels,[...rgbOf($('#ink').value),brushAlpha]);
+}
+
+let paintTool = 'paint';
+function chooseTool(tool) {
+  paintTool = tool;
+  for (const b of $('#paintTools').children) b.setAttribute('aria-pressed',String(b.dataset.tool===tool));
+}
+
+function useBrush(alpha) {
+  brushAlpha = alpha;
+  if(paintTool!=='bucket') chooseTool('paint');
+  const percent=Math.round(100*(1-alpha/255));
+  $('#inkTransparency').value=percent;
+  $('#inkTransparencyValue').textContent=percent+'%';
+  $('#ink').title = '画笔 ' + $('#ink').value.toUpperCase();
+  $('#paintTools').firstElementChild.title = alpha ? $('#ink').title : '擦除（完全透明）';
+}
+
+function selectionPath(points) {
+  const path = new Path2D();
+  points.forEach(([x,y],i) => i ? path.lineTo(x,y) : path.moveTo(x,y));
+  path.closePath();
+  return path;
+}
+
+function selectedPath() {
+  const sel = active?.selection, img = state.res?.image;
+  return sel && img && sel.w===img.width && sel.h===img.height ? selectionPath(sel.points) : null;
+}
+
+function recordPixels(pixels,color) {
+  if (!pixels.length || !stack.find(l=>l.id===layerId)?.visible) return;
+  const {width:w,height:h} = state.res.image;
+  const stroke={id:layerId,w,h,pixels,color};
+  layers.push(stroke);
+  rememberCanvas({stroke});
+  applyEdits(); state.key++; renderAll();
+}
+
+function rememberCanvas(action) {
+  active.canvasHistory.push(action);
+  if(active.canvasHistory.length>50) active.canvasHistory.shift();
+}
+
+function setSelection(next) {
+  if(!active || (!next && !active.selection)) return;
+  rememberCanvas({selection:active.selection || null});
+  active.selection=next;
+}
+
+function undoCanvas() {
+  if(!active || !state.res) return;
+  const history=active.canvasHistory;
+  const index=history.findLastIndex(({stroke})=>!stroke || (stack.some(l=>l.id===stroke.id) &&
+    stroke.w===state.res.image.width && stroke.h===state.res.image.height));
+  if(index<0) return;
+  const [action]=history.splice(index,1);
+  if(action.stroke) {
+    layers.splice(layers.indexOf(action.stroke),1);
+    applyEdits(); state.key++;
+  } else active.selection=action.selection;
+  renderAll();
+}
+
+function exterior(img) {
+  const {width:w,height:h,data} = img;
+  const bins=new Map(), queue=[], seen=new Uint8Array(w*h);
+  const key = i => (data[i*4]>>5)*64+(data[i*4+1]>>5)*8+(data[i*4+2]>>5);
+  const border=[];
+  for(let i=0;i<w*h;i++) if(i<w || i>=w*(h-1) || i%w===0 || i%w===w-1) {
+    border.push(i);
+    if(data[i*4+3]) bins.set(key(i),(bins.get(key(i))||0)+1);
+  }
+  const mode=[...bins].sort((a,b)=>b[1]-a[1])[0]?.[0];
+  const samples=border.filter(i=>data[i*4+3] && key(i)===mode);
+  const rgb=[0,1,2].map(c=>samples.reduce((sum,i)=>sum+data[i*4+c],0)/(samples.length||1));
+  const transparent=border.filter(i=>!data[i*4+3]).length>border.length/2;
+  function visit(i) {
+    if(seen[i]) return;
+    seen[i]=1;
+    const j=i*4;
+    if(data[j+3] && (transparent || Math.hypot(data[j]-rgb[0],data[j+1]-rgb[1],data[j+2]-rgb[2])>55)) return;
+    queue.push(i);
+  }
+  border.forEach(visit);
+  for(let n=0;n<queue.length;n++) {
+    const i=queue[n], x=i%w;
+    if(x) visit(i-1);
+    if(x<w-1) visit(i+1);
+    if(i>=w) visit(i-w);
+    if(i+w<w*h) visit(i+w);
+  }
+  return queue.filter(i=>data[i*4+3]);
+}
+
+let noticeTimer;
+function showTopNotice(message) {
+  const notice=$('#topNotice');
+  notice.textContent=message;
+  notice.classList.add('visible');
+  clearTimeout(noticeTimer);
+  noticeTimer=setTimeout(()=>notice.classList.remove('visible'),1500);
+}
+
+function removeBackground() {
+  if (!state.res) return;
+  if (!stack.find(layer=>layer.id===layerId)?.visible) {
+    $('#maskNote').textContent='当前图层已隐藏，请先显示它。';
+    showTopNotice($('#maskNote').textContent);
+    return;
+  }
+  const img=state.res.image, path=selectedPath();
+  let pixels;
+  if ($('#subject').value==='manual') {
+    if(!path) { chooseTool('lasso'); $('#maskNote').textContent='请用左键圈住主体，再清除背景。'; return; }
+    const ctx=document.createElement('canvas').getContext('2d');
+    pixels=[];
+    for(let i=0;i<img.width*img.height;i++) if(!ctx.isPointInPath(path,i%img.width+.5,Math.floor(i/img.width)+.5)) pixels.push(i);
+  } else pixels=exterior(img);
+  recordPixels(pixels,[0,0,0,0]);
+  $('#maskNote').textContent='已清除 '+pixels.length+' 格，可撤销。';
+}
+
+function pixelPoint(e) {
+  const r=$('#cvRes').getBoundingClientRect(), img=state.res.image;
+  return [(e.clientX-r.left)*img.width/r.width,(e.clientY-r.top)*img.height/r.height];
+}
+
+function drawStep(e) {
+  const pt=pixelPoint(e), d=drawing;
+  if(d.tool==='lasso') d.points.push(pt);
+  else {
+    const [x,y]=pt, [a,b]=d.last || pt;
+    const n=Math.max(1,Math.ceil(Math.max(Math.abs(x-a),Math.abs(y-b))));
+    for(let k=1;k<=n;k++){
+      const u=Math.floor(a+(x-a)*k/n), v=Math.floor(b+(y-b)*k/n);
+      if(u>=0 && v>=0 && u<d.w && v<d.h && (!d.path || d.ctx.isPointInPath(d.path,u+.5,v+.5))) d.pixels.add(v*d.w+u);
+    }
+    d.last=pt;
+  }
+  renderAll();
+}
+
+function editColor(hex) {
+  selected = hex;
+  priorEdit = edits.get(hex);
+  const e = edits.get(hex);
+  $('#tone').value = e?.tone || hex;
+  $('#light').value = e?.light || 0;
+  $('#opacity').value = e?.opacity ?? 100;
+  suggestions();
+  updateReadouts();
+  $('#editor').showModal();
+}
+
+function rgbOf(hex) {
+  return hex.slice(1).match(/../g).map(v => parseInt(v, 16));
+}
+
+function wheelColor(hex) {
+  const rgb = rgbOf(hex).map(v => v/255);
+  const hi = Math.max(...rgb), lo = Math.min(...rgb), d = hi-lo;
+  let h = 0;
+  if (d) h = hi === rgb[0] ? (rgb[1]-rgb[2])/d : hi === rgb[1] ? (rgb[2]-rgb[0])/d+2 : (rgb[0]-rgb[1])/d+4;
+  return {h,hi,d};
+}
+
+function wheelMark(hex, degrees, radius, label, choose) {
+  const el = document.createElement(choose ? 'button' : 'span');
+  el.className = 'wheel-mark';
+  const rad = degrees * Math.PI / 180;
+  el.style.left = (50 + radius * Math.sin(rad)) + '%';
+  el.style.top = (50 - radius * Math.cos(rad)) + '%';
+  el.style.backgroundColor = hex;
+  el.title = label + ' ' + hex;
+  el.setAttribute('aria-label', el.title);
+  el.textContent = label[0];
+  if (choose) el.onclick = choose;
+  $('#wheel').append(el);
+}
+
+function suggestions() {
+  const {h,hi,d} = wheelColor($('#tone').value);
+  const original = wheelColor(selected);
+  $('#wheel').replaceChildren();
+  wheelMark(selected, original.h*60, original.d ? 26 : 0, '原采样色', null);
+  const offsets = {adjacent:[-30,0,30],triad:[0,120,240],tetrad:[0,90,180,270]};
+  const box = $('#choices');
+  box.replaceChildren();
+  for (const angle of offsets[$('#scheme').value]) {
+    const channel = n => {
+      const k = (n+h+angle/60+12)%6;
+      return Math.round(255*(hi-d*Math.max(0,Math.min(k,4-k,1))));
+    };
+    const hex = hexOf(channel(5),channel(3),channel(1));
+    const btn = document.createElement('button');
+    btn.textContent = hex;
+    btn.style.borderBottom = '5px solid '+hex;
+    const choose = () => { $('#tone').value = hex; suggestions(); previewTone(); };
+    btn.onclick = choose;
+    if (d || angle === 0) wheelMark(hex, h*60+angle, d ? 40 : 13,
+      angle === 0 ? '当前编辑色' : '配色 ' + angle + '°', choose);
+    box.append(btn);
+  }
+}
+
+function updateReadouts() {
+  $('#lightValue').textContent = $('#light').value + '%';
+  $('#opacityValue').textContent = $('#opacity').value + '%';
+}
+
+function previewTone() {
+  updateReadouts();
+  finishEdit(false, false);
+}
+
+function cancelTone() {
+  if (priorEdit) edits.set(selected, priorEdit);
+  else edits.delete(selected);
+  applyEdits();
+  state.key++;
+  renderAll();
+  $('#editor').close();
+}
+
+function wheelPick(event) {
+  const box = event.currentTarget.getBoundingClientRect();
+  const x = event.clientX - box.left - box.width / 2;
+  const y = event.clientY - box.top - box.height / 2;
+  const hue = (Math.atan2(x, -y) / (2 * Math.PI) + 1) % 1;
+  const channel = n => {
+    const k = (n + hue * 6) % 6;
+    return Math.round(255 * (1 - Math.max(0, Math.min(k, 4-k, 1))));
+  };
+  $('#tone').value = hexOf(channel(5), channel(3), channel(1));
+  suggestions();
+  previewTone();
+}
+
+function finishEdit(reset, close = true) {
+  if (reset) edits.delete(selected);
+  else {
+    const tone = $('#tone').value, light = Number($('#light').value);
+    const rgb = rgbOf(tone).map(c => Math.round(c + (light >= 0 ? 255-c : c)*light/100));
+    edits.set(selected, {tone, light, opacity:Number($('#opacity').value), rgb, hex:hexOf(...rgb)});
+  }
+  applyEdits();
+  state.key++;
+  renderAll();
+  if (close) { remember(); $('#editor').close(); }
+}
+
+function updateColors() {
+  const res = state.res;
+  const box = $('#palette');
+  box.innerHTML = '';
+  if (!res) return;
+  const list = base.palette || [];
+  const shown = list;
+  for (const [r, g, b, n] of shown) {
+    const sw = document.createElement('button');
+    sw.className = 'sw';
+    sw.style.background = `rgb(${r},${g},${b})`;
+    const hex = hexOf(r, g, b);
+    sw.title = `${hex} · ${n} 格`;
+    sw.addEventListener('click', () => editColor(hex));
+    sw.oncontextmenu = e => { e.preventDefault(); copyText(hex); };
+    if (edits.has(hex)) sw.style.background = edits.get(hex).hex;
+    box.appendChild(sw);
+  }
+  if (res.colorsAfter > shown.length) {
+    const more = document.createElement('span');
+    more.className = 'more';
+    more.textContent = `+${res.colorsAfter - shown.length}`;
+    box.appendChild(more);
+  }
+
+  const limit = state.opts.colors;
+  const isStrong = state.opts.sample === 'strong';
+  let text;
+  if (!limit) {
+    text = isStrong
+      ? `强劲模式默认 32 色，当前 ${res.colorsAfter} 色（可在上面改 8/16/64）。`
+      : state.opts.sample === 'region'
+        ? `区域吸附自动收敛到 ${res.colorsAfter} 个主色。`
+        : `输出共 ${res.colorsAfter} 色（未限色，可继续调低）。`;
+  } else if (res.colorsBefore <= limit) {
+    text = `采样后本来就只有 ${res.colorsBefore} 色，未超过 ${limit}，无需减色。`;
+  } else {
+    text = `采样后 ${res.colorsBefore} 色 → 限制到 ${limit} 色，实际 ${res.colorsAfter} 色（中位切分）。`;
+  }
+  $('#colorHint').textContent = text;
+}
+
+async function copyText(text) {
+  let ok = true;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      ta.remove();
+    } catch (e2) {
+      ok = false;
+    }
+  }
+  const el = $('#paletteHint');
+  el.textContent = ok ? `已复制 ${text}` : `复制失败：${text}`;
+  setTimeout(() => {
+    el.textContent = '点色块可复制十六进制值。';
+  }, 1600);
+}
+
+function applyWipe() {
+  $('#cvSrc').style.clipPath = `inset(0 0 0 ${state.wipe}%)`;
+  $('#cvRes').style.clipPath = `inset(0 ${100 - state.wipe}% 0 0)`;
+  $('#wipeNum').textContent = `${Math.round(state.wipe)}%`;
+}
+
+/* --------------------------------------------------------------- 诊断 */
+
+function updateDiag() {
+  $('#notes').replaceChildren();
+  const r = state.res;
+  const s = state.src;
+  if (!r || !s) return;
+  $('#dInput').textContent = `${s.width} × ${s.height} px`;
+  $('#dGrid').textContent = `${r.gridW} × ${r.gridH} 格`;
+  $('#dCell').textContent = `${r.cellW.toFixed(2)} × ${r.cellH.toFixed(2)} px`;
+  $('#dMethod').textContent = METHOD_LABEL[r.method] || r.method;
+  $('#dConf').textContent = r.method === 'manual' ? '—（手动指定）' : `${Math.round(r.confidence * 100)}%`;
+  $('#dMs').textContent = `${r.ms} ms`;
+  $('#dOut').textContent = `${r.outW} × ${r.outH} 格`;
+  $('#dColors').textContent =
+    r.colorsAfter === r.colorsBefore
+      ? `${r.colorsAfter} 色`
+      : `${r.colorsBefore} → ${r.colorsAfter} 色`;
+
+  const W = s.width;
+  const H = s.height;
+  if (r.confidence < 0.45) {
+    addNote('置信度偏低：这张图可能不是像素画，或网格不规则。可以手动指定格数再试。', 'warn');
+  }
+  if (r.gridW > 0 && Math.abs(W / r.gridW - Math.round(W / r.gridW)) > 0.02) {
+    addNote(`横向格宽是 ${(W / r.gridW).toFixed(2)}px，不是整数：右侧最后一格会略窄，属正常现象。`, '');
+  }
+  if (r.squared) {
+    addNote('检测到近似正方形，已按 fix_square 规则补齐对齐。', '');
+  }
+  if (r.method === 'manual') {
+    if (r.gridW > W || r.gridH > H) {
+      addNote('指定格数超过输入像素数，采样无法增加细节。若要放大，请调整导出尺寸。','warn');
+    } else if (r.gridW === W && r.gridH === H) {
+      addNote('手动网格与输入尺寸相同，每个输入像素对应一格。','');
+    }
+  } else if (r.method === 'fallback') {
+    addNote('自动检测未找到稳定的网格周期，已使用回退格数。','warn');
+  } else if (r.cellW <= 2.2 || r.cellH <= 2.2) {
+    addNote(`自动检测到细网格，每格约 ${r.cellW.toFixed(2)} × ${r.cellH.toFixed(2)} px。`,'ok');
+  }
+  if (r.cleaned > 0) {
+    addNote(`强劲模式：已把轮廓外侧 ${r.cleaned} 格混色/杂点并进背景，并刷平背景。`, 'ok');
+  }
+  if (r.speckles > 0) {
+    addNote(`强劲模式：另去除 ${r.speckles} 个孤立杂点。`, 'ok');
+  }
+}
+
+function addNote(text, kind) {
+  const li = document.createElement('li');
+  li.textContent = text;
+  if (kind) li.className = kind;
+  $('#notes').appendChild(li);
+}
+
+function setUrlHint(text, bad) {
+  const el = $('#urlHint');
+  el.textContent = text;
+  el.classList.toggle('bad', !!bad);
+}
+
+/* --------------------------------------------------------------- 导出 */
+
+function targetDimensions() {
+  const img = state.res.image;
+  let width = img.width, height = img.height;
+  if (state.target === 'input') ({width,height} = state.src);
+  else if (state.target === '192x224') { width=192; height=224; }
+  else if (state.target !== 'one') width=height=Number(state.target);
+  const factor=width/img.width;
+  return {width,height,label:`${width}x${height}`,factor,exact:Number.isInteger(factor) && factor===height/img.height};
+}
+
+function currentTarget() {
+  const t = targetDimensions(), img = state.res.image;
+  const image = t.width===img.width && t.height===img.height ? img : scaleNearest(img,t.width,t.height);
+  return {...t,image};
+}
+
+function updateTargetHint() {
+  if (!state.res) return;
+  const t = targetDimensions();
+  const img = state.res.image;
+  const el = $('#targetHint');
+  if (t.exact) {
+    el.textContent = `${img.width}×${img.height} → ${t.label}，${Number.isInteger(t.factor) ? `${t.factor} 倍` : `${t.factor.toFixed(2)} 倍`}最近邻放大：每个像素块内部纯色，无插值。`;
+    el.classList.remove('bad');
+  } else {
+    el.textContent = `${img.width}×${img.height} → ${t.label} 不是整数倍，会按最近邻取整，个别像素会不均匀。`;
+    el.classList.add('bad');
+  }
+}
+
+function toBlob(img) {
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext('2d');
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(img.data), img.width, img.height), 0, 0);
+  return new Promise((res) => c.toBlob(res, 'image/png'));
+}
+
+async function exportPng() {
+  if (!state.res) return;
+  const t = currentTarget();
+  const blob = await toBlob(t.image);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `perfect-pixel-${t.label}.png`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function copyPng() {
+  if (!state.res) return;
+  try {
+    const t = currentTarget();
+    const blob = await toBlob(t.image);
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    $('#btnCopy').textContent = '已复制 ✓';
+  } catch (e) {
+    $('#btnCopy').textContent = '复制失败';
+  }
+  setTimeout(() => { $('#btnCopy').textContent = '复制到剪贴板'; }, 1400);
+}
+
+/* --------------------------------------------------------------- 事件 */
+
+function syncLargeGrid(enabled) {
+  $('#largeGrid').checked=!!enabled;
+  for(const input of [$('#gridW'),$('#gridH')]) input.max=enabled ? 2048 : 512;
+}
+
+function syncForceGrid(enabled) {
+  $('#forceGrid').checked = enabled;
+  $('#fixSquare').disabled = $('#refine').disabled = enabled;
+}
+
+function bind() {
+  $('#largeGrid').onchange=e=>{
+    const enabled=e.target.checked;
+    const w=$('#gridW'), h=$('#gridH');
+    if(!enabled && Math.max(w.valueAsNumber,h.valueAsNumber)>512) {
+      syncLargeGrid(state.opts.largeGrid);
+      showTopNotice('请先将横纵格数调至 512 以内，再关闭大图精校。');
+      return;
+    }
+    state.opts.largeGrid=enabled;
+    syncLargeGrid(enabled);
+    updateGridFactors();
+    remember();
+  };
+  $('#forceGrid').onchange = e => {
+    state.opts.forceGrid=e.target.checked;
+    syncForceGrid(state.opts.forceGrid);
+    reprocess();
+  };
+  $('#btnDemo').addEventListener('click', () => loadImage(makeDemo(), 'demo'));
+  $('#btnPick').addEventListener('click', () => $('#file').click());
+  $('#file').addEventListener('change', (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (f) loadImage(f, f.name);
+    e.target.value = '';
+  });
+
+  $('#sample').addEventListener('change', (e) => {
+    state.opts.sample = e.target.value;
+    $('#sampleHint').textContent = SAMPLE_HINT[e.target.value] || '';
+    reprocess();
+  });
+
+  $('#modeSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-mode]');
+    if (!btn) return;
+    if (state.mode === btn.dataset.mode) return;
+    state.mode = btn.dataset.mode;
+    for (const b of $('#modeSeg').children) b.classList.toggle('on', b === btn);
+    $('#manualBox').hidden = state.mode !== 'manual';
+    if (state.res) {
+      $('#gridW').value = state.res.gridW;
+      $('#gridH').value = state.res.gridH;
+      if (state.opts.gridRatio) state.opts.gridRatio = state.res.gridW / state.res.gridH;
+    }
+    updateGridFactors();
+    reprocess();
+  });
+
+  const widthInput=$('#gridW'), heightInput=$('#gridH');
+  $('#gridLink').onclick=()=>{
+    if(!state.opts.gridRatio && ![widthInput,heightInput].every(el=>el.value && el.validity.valid)) return;
+    state.opts.gridRatio=state.opts.gridRatio ? 0 : widthInput.valueAsNumber/heightInput.valueAsNumber;
+    $('#gridLink').setAttribute('aria-pressed',String(!!state.opts.gridRatio));
+    remember();
+  };
+  function linkOther(input) {
+    const ratio=state.opts.gridRatio;
+    if(!ratio || !input.value || !input.validity.valid) return;
+    const horizontal=input===widthInput;
+    const other=horizontal ? heightInput : widthInput;
+    const factor=horizontal ? 1/ratio : ratio;
+    const value=input.valueAsNumber;
+    const paired=Math.min(+other.max,Math.max(+other.min,Math.round(value*factor)));
+    other.value=paired;
+    if(value*factor > +other.max || value*factor < +other.min)
+      input.value=Math.min(+input.max,Math.max(+input.min,Math.round(paired/factor)));
+  }
+  let gridTimer;
+  function commitGrid() {
+    clearTimeout(gridTimer);
+    if (!active || state.mode !== 'manual') return;
+    const w = $('#gridW'), h = $('#gridH');
+    if (![w,h].every(input => input.value && input.validity.valid)) return;
+    if (active.settings.gw !== w.value || active.settings.gh !== h.value) reprocess();
+  }
+  updateGridFactors();
+  $('#gridFactors').onclick=e=>{
+    const b=e.target.closest('button[data-factor]');
+    if(!b || b.disabled) return;
+    for(const el of [widthInput,heightInput]) el.value=Math.max(1,Math.round(el.valueAsNumber*Number(b.dataset.factor)));
+    updateGridFactors();
+    commitGrid();
+  };
+  for (const input of [$('#gridW'), $('#gridH')]) {
+    input.oninput = () => {
+      linkOther(input);
+      updateGridFactors();
+      clearTimeout(gridTimer);
+      const owner = active;
+      gridTimer = setTimeout(() => { if (owner === active) commitGrid(); }, 350);
+    };
+    input.onchange = commitGrid;
+    input.onkeydown = e => { if (e.key === 'Enter') commitGrid(); };
+  }
+
+  $('#refine').addEventListener('input', (e) => {
+    state.opts.refine = Number(e.target.value) / 100;
+    $('#refineNum').textContent = `${e.target.value}%`;
+  });
+  $('#refine').addEventListener('change', reprocess);
+
+  $('#fixSquare').addEventListener('change', (e) => {
+    state.opts.fixSquare = e.target.checked;
+    reprocess();
+  });
+
+  $('#colorSeg').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-colors]');
+    if (!btn) return;
+    state.opts.colors = Number(btn.dataset.colors);
+    for (const b of $('#colorSeg').children) b.classList.toggle('on', b === btn);
+    reprocess();
+  });
+
+  $('#btnRedetect').addEventListener('click', () => {
+    state.mode = 'auto';
+    for (const b of $('#modeSeg').children) b.classList.toggle('on', b.dataset.mode === 'auto');
+    $('#manualBox').hidden = true;
+    reprocess();
+  });
+
+  $('#wipe').addEventListener('input', (e) => {
+    state.wipe = Number(e.target.value);
+    applyWipe();
+  });
+
+  $('#showGrid').addEventListener('change', (e) => {
+    state.grid = e.target.checked;
+    renderAll();
+  });
+
+  $('#zoomIn').addEventListener('click', () => {
+    state.zoom = Math.min(24, state.zoom * 2);
+    renderAll();
+  });
+  $('#zoomOut').addEventListener('click', () => {
+    state.zoom = Math.max(0.1, state.zoom / 2);
+    renderAll();
+  });
+  $('#zoomFit').addEventListener('click', () => {
+    state.panX = state.panY = 0;
+    state.zoom = 1;
+    positionView();
+  });
+
+  $('#target').addEventListener('change', (e) => {
+    state.target = e.target.value;
+    remember();
+    updateTargetHint();
+  });
+
+  $('#btnExport').addEventListener('click', exportPng);
+  $('#btnCopy').addEventListener('click', copyPng);
+
+  $('#btnUrl').addEventListener('click', loadFromUrl);
+  $('#url').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') loadFromUrl();
+  });
+
+  // 拖拽
+  const dz = $('#dz');
+  dz.title = '右键擦除 · 中键拖动平移 · 滚轮缩放 · 点击「适应」复位';
+  let drag, panFrame, pointer;
+  function followLasso() {
+    panFrame = 0;
+    if (drawing?.tool !== 'lasso' || !pointer) return;
+    const r = dz.getBoundingClientRect();
+    const shift = (v,min,max) => Math.max(-2,Math.min(2,(v<min ? min-v : v>max ? max-v : 0)*0.05));
+    const mx=Math.min(48,r.width/4), my=Math.min(48,r.height/4);
+    const dx = shift(pointer.clientX,r.left+mx,r.right-mx), dy = shift(pointer.clientY,r.top+my,r.bottom-my);
+    if (!dx && !dy) return;
+    state.panX += dx; state.panY += dy;
+    positionView();
+    drawStep(pointer);
+    panFrame = requestAnimationFrame(followLasso);
+  }
+  dz.oncontextmenu = e => e.preventDefault();
+  dz.onauxclick = e => { if(e.button===1) e.preventDefault(); };
+  dz.onpointerdown = e => {
+    if (!state.res || drawing || drag) return;
+    if(e.button===0 || e.button===2){
+      const [x,y]=pixelPoint(e).map(Math.floor), img=state.res.image;
+      if(x<0||y<0||x>=img.width||y>=img.height) return;
+      if(e.button===0 && e.altKey) {
+        const j=(y*img.width+x)*4;
+        $('#ink').value=hexOf(...img.data.slice(j,j+3));
+        useBrush(255); e.preventDefault(); return;
+      }
+      if(e.button===0 && paintTool==='bucket') { bucketFill(x,y); return; }
+      drawing={id:e.pointerId,tool:e.button===2?'paint':paintTool,startX:e.clientX,startY:e.clientY,moved:false,w:img.width,h:img.height,points:[],pixels:new Set(),
+        color:e.button===2?[0,0,0,0]:[...rgbOf($('#ink').value),brushAlpha],path:selectedPath(),ctx:document.createElement('canvas').getContext('2d')};
+      dz.setPointerCapture(e.pointerId); drawStep(e);return;
+    }
+    if(e.button!==1) return;
+    e.preventDefault();
+    drag = {id:e.pointerId,x:e.clientX,y:e.clientY};
+    dz.setPointerCapture(e.pointerId);
+    dz.classList.add('panning');
+  };
+  dz.onpointermove = e => {
+    if(e.pointerId===drawing?.id) {
+      drawing.moved ||= Math.hypot(e.clientX-drawing.startX,e.clientY-drawing.startY)>3;
+      pointer = e;
+      drawStep(e);
+      if(drawing.tool==='lasso' && !panFrame) panFrame=requestAnimationFrame(followLasso);
+      return;
+    }
+    if (e.pointerId !== drag?.id) return;
+    state.panX += e.clientX-drag.x;
+    state.panY += e.clientY-drag.y;
+    drag.x=e.clientX; drag.y=e.clientY;
+    positionView();
+  };
+  dz.onpointerup = e => {
+    if(e.pointerId!==drawing?.id) return;
+    drawStep(e);
+    const d=drawing; drawing=null;
+    if(d.tool==='lasso') setSelection(d.moved && d.points.length>=3 ? {w:d.w,h:d.h,points:d.points} : null);
+    else recordPixels([...d.pixels],d.color);
+    renderAll();
+  };
+  dz.onlostpointercapture = () => { cancelAnimationFrame(panFrame); panFrame=0; pointer=null; drawing=null; drag=null; dz.classList.remove('panning'); };
+  dz.addEventListener('wheel', e => {
+    if (!state.src) return;
+    e.preventDefault();
+    const delta = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? dz.clientHeight : 1);
+    const zoom = Math.max(0.1, Math.min(24, state.zoom*Math.exp(-delta*0.002)));
+    const ratio = zoom/state.zoom;
+    const bounds = dz.getBoundingClientRect();
+    const x = e.clientX-bounds.left-bounds.width/2;
+    const y = e.clientY-bounds.top-bounds.height/2;
+    state.panX = x+(state.panX-x)*ratio;
+    state.panY = y+(state.panY-y)*ratio;
+    state.zoom=zoom;
+    positionView();
+  }, {passive:false});
+  for (const evt of ['dragenter', 'dragover']) {
+    window.addEventListener(evt, (e) => {
+      e.preventDefault();
+      dz.classList.add('drag');
+    });
+  }
+  for (const evt of ['dragleave', 'drop']) {
+    window.addEventListener(evt, (e) => {
+      e.preventDefault();
+      if (evt === 'dragleave' && e.relatedTarget) return;
+      dz.classList.remove('drag');
+    });
+  }
+  window.addEventListener('drop', (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) loadImage(f, f.name);
+  });
+
+  // 粘贴
+  window.addEventListener('paste', (e) => {
+    const items = e.clipboardData && e.clipboardData.items;
+    if (!items) return;
+    for (const it of items) {
+      if (it.type.startsWith('image/')) {
+        const f = it.getAsFile();
+        if (f) {
+          e.preventDefault();
+          loadImage(f, 'clipboard');
+          return;
+        }
+      }
+    }
+  });
+
+  window.addEventListener('resize', () => {
+    if (state.src) renderAll();
+  });
+
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => {
+      if (state.src) renderAll();
+    }).observe($('#dz'));
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
+      if ($('#editor').open || e.target.isContentEditable || e.target.matches('textarea,input[type=text],input[type=url],input[type=number]')) return;
+      e.preventDefault();
+      if (!drawing && !e.repeat) undoCanvas();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      exportPng();
+    }
+  });
+}
+
+async function loadFromUrl() {
+  const url = $('#url').value.trim();
+  if (!url) return;
+  setUrlHint('读取中…');
+  try {
+    const resp = await fetch(url, { credentials: 'omit' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    if (!blob.type.startsWith('image/')) throw new Error('不是图片内容');
+    await loadImage(blob, url.split('/').pop() || 'url');
+    setUrlHint('已读取。');
+  } catch (e) {
+    setUrlHint(`读取失败：${e.message}（该站点未开放跨域读取，请改用拖拽或截图粘贴）`, true);
+  }
+}
+
+/* --------------------------------------------------------------- 启动 */
+
+function boot() {
+  syncLargeGrid(state.opts.largeGrid);
+  syncForceGrid(state.opts.forceGrid);
+  for (const option of $('#sample').options) $('#sample2').append(option.cloneNode(true));
+  $('#sample2').value = '';
+  $('#sample2').onchange = () => { state.opts.sample2 = $('#sample2').value; reprocess(); };
+  $('#undo').onclick = undoEdit;
+  $('#paintTools').onclick = e => { const b=e.target.closest('button'); if(b) chooseTool(b.dataset.tool); };
+  $('#layerToggle').onclick=()=>{const panel=$('#layerPanel');panel.hidden=!panel.hidden;$('#layerToggle').setAttribute('aria-expanded',String(!panel.hidden));drawLayerList();};
+  $('#addLayer').onclick=()=>{if(!state.res)return;layerId=active.nextLayer++;changeLayers([...stack,{id:layerId,name:'图层 '+layerId,visible:true}]);};
+  $('#removeBG').onclick=removeBackground;
+  $('#subject').onchange=()=>{ if($('#subject').value==='manual') chooseTool('lasso'); };
+  $('#noSelection').onclick=()=>{ if(active) { setSelection(null); renderAll(); } };
+  $('#ink').onclick = $('#ink').oninput = $('#ink').onchange = () => useBrush(brushAlpha || 255);
+  $('#inkTransparency').oninput = e => useBrush(Math.round(255*(100-Number(e.target.value))/100));
+  useBrush(255);
+  bind();
+  $('#tone').oninput = () => { suggestions(); previewTone(); };
+  $('#light').oninput = $('#opacity').oninput = previewTone;
+  $('#wheel').onpointerdown = e => { if (e.target.closest("button")) return; e.currentTarget.setPointerCapture(e.pointerId); wheelPick(e); };
+  $('#wheel').onpointermove = e => { if (e.buttons && e.currentTarget.hasPointerCapture(e.pointerId)) wheelPick(e); };
+  $('#editor').oncancel = e => { e.preventDefault(); cancelTone(); };
+  $('#scheme').onchange = suggestions;
+  $('#applyTone').onclick = () => finishEdit(false);
+  $('#resetTone').onclick = () => finishEdit(true);
+  $('#cancelTone').onclick = cancelTone;
+  if (isExt) $('#extChip').hidden = false;
+  $('#sampleHint').textContent = SAMPLE_HINT[state.opts.sample];
+  $('#refineNum').textContent = `${Math.round(state.opts.refine * 100)}%`;
+
+  const params = new URLSearchParams(location.search);
+  const src = params.get('src');
+  if (src) {
+    $('#url').value = src;
+    loadFromUrl();
+  } else if (params.has('demo')) {
+    loadImage(makeDemo(), 'demo');
+  }
+}
+
+boot();
+
+})();
+</script>
+</body>
+</html>

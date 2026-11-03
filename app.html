@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Perfect Pixel 192 — 完美像素还原</title>
+  <link rel="stylesheet" href="app.css" />
+</head>
+<body>
+  <div id="topNotice" role="status" aria-live="polite"></div>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </span>
+      <div>
+        <h1>Perfect Pixel <b>192</b></h1>
+        <p>识别格宽 · 纯色还原 · 无插值放大</p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip on">192px 原生支持</span>
+      <span class="chip">2px 细格可识别</span>
+      <span class="chip" id="extChip" hidden>扩展环境</span>
+    </div>
+    <div class="top-actions">
+      <button id="btnDemo" class="btn">载入示例</button>
+      <button id="btnPick" class="btn primary">选择图片</button>
+      <input id="file" type="file" accept="image/*" hidden />
+    </div>
+  </header>
+
+  <nav class="canvases" aria-label="画布"><span id="tabs"></span><button id="undo" title="撤销设置或图层操作" disabled>撤销上一步</button></nav>
+  <main class="wrap">
+    <section class="stage">
+      <div class="canvas-box" id="dz">
+        <canvas id="cvSrc"></canvas>
+        <canvas id="cvRes"></canvas>
+        <svg id="guideGrid" aria-hidden="true" style="display:none"><path fill="none" stroke="currentColor" vector-effect="non-scaling-stroke"/></svg>
+        <canvas id="cvGrid"></canvas>
+        <div class="empty" id="empty">
+          <strong>拖入图片 / 按 Ctrl+V 粘贴 / 从网页右键菜单导入</strong>
+          <span>建议先试一张 192×192 的 AI 像素图或缩略图</span>
+        </div>
+        <div class="busy" id="busy" hidden>处理中…</div>
+      </div>
+      <div class="stage-bar">
+        <label class="row">
+          <span>处理结果占比</span>
+          <input id="wipe" type="range" min="0" max="100" value="100" />
+          <em id="wipeNum">100%</em>
+        </label>
+        <label class="row check">
+          <input id="showGrid" type="checkbox" checked />
+          <span>网格</span>
+        </label>
+        <button id="layerToggle" title="图层" aria-label="图层" aria-expanded="false">▱ 图层</button>
+        <div class="zoom">
+          <button id="zoomOut" class="btn tiny" title="缩小">−</button>
+          <span id="zoomLabel">适应</span>
+          <button id="zoomIn" class="btn tiny" title="放大">+</button>
+          <button id="zoomFit" class="btn tiny ghost">适应</button>
+        </div>
+      </div>
+      <div id="layerPanel" hidden><button id="addLayer">＋ 新建图层</button><div id="layerList"></div></div>
+    </section>
+
+    <aside class="panel">
+      <section class="card">
+        <h2>网格</h2>
+        <div class="seg" id="modeSeg">
+          <button data-mode="auto" class="on">自动检测</button>
+          <button data-mode="manual">手动指定</button>
+        </div>
+        <div class="grid-inputs" id="manualBox" hidden>
+          <label>横向格数 <input id="gridW" type="number" min="1" max="512" value="32" /></label>
+          <button type="button" id="gridLink" aria-label="锁定网格宽高比" aria-pressed="true" title="锁定当前网格宽高比"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 13 4-4m-5 6-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 2 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"/></svg></button>
+          <label>纵向格数 <input id="gridH" type="number" min="1" max="512" value="32" /></label>
+          <div id="gridFactors" aria-label="按当前格数缩放"><button type="button" data-factor="2">×2<small></small></button><button type="button" data-factor="3">×3<small></small></button><button type="button" data-factor="5">×5<small></small></button><button type="button" data-factor="0.5">÷2<small></small></button><button type="button" data-factor="0.3333333333333333">÷3<small></small></button><button type="button" data-factor="0.2">÷5<small></small></button></div>
+        </div>
+        <label class="row">
+          <span>精修强度</span>
+          <input id="refine" type="range" min="0" max="50" value="25" />
+          <em id="refineNum">25%</em>
+        </label>
+        <label class="row check">
+          <input id="fixSquare" type="checkbox" checked />
+          <span>近似正方形时强制对齐（上游 fix_square）</span>
+        </label>
+        <label class="row check"><input id="forceGrid" type="checkbox" checked> 强制对齐到等距网格</label>
+        <label class="row check"><input id="largeGrid" type="checkbox"> 大图精校 · 上限 2048 格</label>
+        <p class="hint">这里填写采样格数。要导出 192×224 的 4×4 色块，请填 48×56，并在「输出与导出」选择 192×224。</p>
+        <button id="btnRedetect" class="btn">重新检测</button>
+      </section>
+      <section class="card">
+        <h2>采样方式一</h2>
+        <select id="sample">
+          <option value="outline">轮廓优先（格内众数 + 外侧清理）</option>
+          <option value="core">中心裁剪均值（推荐 / 抗软边）</option>
+          <option value="strong">★ 强劲模式：单像素中心 + 32 色 + 清轮廓外侧</option>
+          <option value="region">区域吸附去 AA（描边整体发灰时更狠）</option>
+          <option value="center" selected>单像素中心（最锐利，不去噪）</option>
+          <option value="majority">直方图众数（抗噪）</option>
+          <option value="median">中位数（上游原版）</option>
+        </select>
+        <label>采样方式二<select id="sample2"><option value="">无</option></select></label>
+        <p class="hint">第二次处理第一次的采样结果，保持相同的像素宽高。</p><p class="hint" id="sampleHint">只平均格子中央 50% 区域，避开 AI/JPEG 产生的软边混色环。</p>
+      </section>
+
+      <section class="card">
+        <h2>背景与主体</h2>
+<select id="subject"><option value="auto">自动识别（边缘连通背景）</option><option value="manual">手动保留套索内的主体</option></select>
+<button id="removeBG">一键清除背景</button><small id="maskNote"></small></section>
+<section class="card"><h2>画笔与选区</h2>
+<div id="paintTools" role="group" aria-label="左键工具">
+<button data-tool="paint" title="像素画笔" aria-label="像素画笔" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 16 16 4l4 4L8 20l-5 1zM13 7l4 4"/></svg></button>
+<button data-tool="lasso" title="自由套索" aria-label="自由套索" aria-pressed="false"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="9" rx="9" ry="6"/><path d="M6 14c-5 4 4 7 5 3s-5-4-4 0q1 6 10 4"/></svg></button>
+<button data-tool="bucket" aria-label="油漆桶" aria-pressed="false" title="油漆桶：点击画布填充连通同色区域"><svg aria-hidden="true" viewBox="0 0 24 24"><path d="m4 12 8-8 8 8-8 8z M4 12h16 M7 2l6 6"/><path fill="currentColor" d="M20 15s-2 3-2 4a2 2 0 0 0 4 0c0-1-2-4-2-4z"/></svg></button></div>
+<input type="color" id="ink" value="#222222"><label class="row" for="inkTransparency">透明度 <input id="inkTransparency" type="range" min="0" max="100" step="1" value="0"><output id="inkTransparencyValue" for="inkTransparency">0%</output></label>
+<button id="noSelection">取消选区</button><p class="hint">Alt + 左键吸取像素颜色，左键拖动上色。套索闭合后只在选区内绘制。套索模式下单击取消选区，靠近视图边缘自动平移。右键擦除，中键拖动画布，Ctrl+Z 仅撤销画布绘制或选区操作。</p></section>
+<section class="card"><h2>颜色数</h2>
+        <div class="seg cols5" id="colorSeg">
+          <button data-colors="0" class="on">不限</button>
+          <button data-colors="8">8</button>
+          <button data-colors="16">16</button>
+          <button data-colors="32">32</button>
+          <button data-colors="64">64</button>
+        </div>
+        <p class="hint" id="colorHint">不限色时保留采样得到的全部颜色；限制后会做中位切分合并相近色。</p>
+        <dialog id="editor"><h2>编辑采样色</h2>
+<div id="wheel" title="沿色环点击或拖动选择色相"></div><small>原：原采样色　当：当前编辑色　配：可选配色</small>
+<label>颜色 <input id="tone" type="color"></label>
+<label>明暗调整 <output id="lightValue"></output><input id="light" type="range" min="-100" max="100" value="0"></label>
+<label>不透明度 <output id="opacityValue"></output><input id="opacity" type="range" min="0" max="100" value="100"></label>
+<label>配色 <select id="scheme"><option value="adjacent">邻近色</option><option value="triad">三角色</option><option value="tetrad">四角色（正方形）</option></select></label>
+<div id="choices"></div><button id="applyTone">应用</button><button id="cancelTone">取消</button><button id="resetTone">恢复此采样色</button></dialog>
+<div class="palette" id="palette"></div>
+        <p class="hint" id="paletteHint">点击采样色编辑，右键复制色值。</p>
+      </section>
+
+
+
+      <section class="card">
+        <h2>输出与导出</h2>
+        <label class="row">
+          <span>目标尺寸</span>
+          <select id="target">
+            <option value="one">1× 原格（无放大）</option>
+            <option value="input">与原图同尺寸</option>
+            <option value="192x224">192 × 224（竖版）</option>
+            <option value="192" selected>192 × 192</option>
+            <option value="384">384 × 384</option>
+            <option value="512">512 × 512</option>
+            <option value="1024">1024 × 1024</option>
+          </select>
+        </label>
+        <p class="hint" id="targetHint">—</p>
+        <div class="btns">
+          <button id="btnExport" class="btn primary">导出 PNG</button>
+          <button id="btnCopy" class="btn">复制到剪贴板</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>诊断</h2>
+        <dl class="diag" id="diag">
+          <dt>输入</dt><dd id="dInput">—</dd>
+          <dt>检测格数</dt><dd id="dGrid">—</dd>
+          <dt>单格尺寸</dt><dd id="dCell">—</dd>
+          <dt>估计方法</dt><dd id="dMethod">—</dd>
+          <dt>置信度</dt><dd id="dConf">—</dd>
+          <dt>耗时</dt><dd id="dMs">—</dd>
+          <dt>输出</dt><dd id="dOut">—</dd>
+          <dt>颜色</dt><dd id="dColors">—</dd>
+        </dl>
+        <ul class="notes" id="notes"></ul>
+      </section>
+
+      <section class="card">
+        <h2>从 URL 导入</h2>
+        <div class="url-row">
+          <input id="url" type="url" placeholder="https://…/sprite.png" />
+          <button id="btnUrl" class="btn">读取</button>
+        </div>
+        <p class="hint" id="urlHint">跨域图片需要该站点允许读取，否则请改用拖拽或粘贴。</p>
+      </section>
+    </aside>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

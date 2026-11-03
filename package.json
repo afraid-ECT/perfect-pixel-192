@@ -1,0 +1,10 @@
+{
+  "name": "perfect-pixel-192",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Pixel-perfect quantizer for 192px-class artwork (Chrome/Edge MV3 extension)",
+  "scripts": {
+    "test": "node test/test-core.mjs"
+  }
+}

@@ -1,0 +1,29 @@
+name: test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 算法回归（43 项断言）
+        run: node test/test-core.mjs
+
+      - name: 成品模式回归（14 项断言）
+        run: node test/test-strong.mjs
+
+      - name: 静态一致性（DOM id / manifest / CSP）
+        run: node test/test-static.mjs
+
+      - name: 网格检测基准
+        run: node test/bench-grid.mjs
