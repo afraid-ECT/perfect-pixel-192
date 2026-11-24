@@ -24,6 +24,8 @@ jobs:
 
       - name: 静态一致性（DOM id / manifest / CSP）
         run: node test/test-static.mjs
+      - name: 工作区与撤销
+        run: node test/test-undo.mjs
 
       - name: 网格检测基准
         run: node test/bench-grid.mjs

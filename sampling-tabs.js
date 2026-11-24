@@ -1,0 +1,1 @@
+for(const button of document.querySelectorAll('.sampling-tabs button'))button.onclick=()=>parent.postMessage({type:'perfect-pixel-page',page:button.dataset.page},'*');

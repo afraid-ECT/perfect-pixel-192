@@ -19,7 +19,13 @@ const METHOD_LABEL = {
 };
 
 const SAMPLE_HINT = {
-  outline: '格内众数取色，先清理与画布边缘连通的背景，再限色。适合简单背景的单角色。',
+ 'scene-general-edges':'按材质分界整理斜线和已有描边，清理边缘跳色，同时保护贯通直线、接头和小物体剪影。',
+ 'scene-traced-edges':'沿原图追踪边界，把有充分依据的直线段重绘成连续的单色描边，并保护交接处和小物体。',
+ 'scene-anchored-lines':'从原图确认直线两端，规整横竖线和斜线，并减弱限色造成的反光断层。',
+ 'scene-straight':'合并相邻近色区域，规整并重填轮廓，从填色后的区域提取单侧共边。',
+ 'scene-element':'元素分割：先按「细长度 + 与邻居的明暗差」把抽屉框、把手这类 1–2px 深色线认成独立元素并保护起来，再按每个元素自己的明暗跨度定额。总色数不设硬上限，由各元素需求加出来（默认软上限 160）。适合线条多、细节密的场景。',
+ 'scene-tonal':'区域自适应：先按色差把画面切成若干区域，每个区域按自己的明暗跨度分配色数（保底 1 色，面积小但孤立的区域拿得更多），再在区域内沿主方差通道等距取色。吸附只在本区域的调色板里选，所以白色不会吸到黄色。「颜色数」是总目标，选「不限」时按 64 算。',  outline: '格内众数取色，先清理与画布边缘连通的背景，再限色。适合简单背景的单角色。',
+  'subject-fusion': '先从原图分离单个主体，再采样并清理缺少原图依据的轮廓毛刺。适合纯色、浅纹理或透明背景。',
   core: '只平均格子中央 50% 区域，避开 AI/JPEG 产生的软边混色环。',
   strong: '单像素中心取色（最锐利，1px 描边不会被平均掉）→ 限到 32 色 → 去掉孤点 → 把轮廓外侧的混色环并进背景、背景刷平。适合出成品图。',
   region: '中心加权众数取色 + 只保留"占面积的纯色区域"建调色板，再把每格吸附过去。描边整体发灰时用它，但颜色会比强劲模式少。',
@@ -28,12 +34,13 @@ const SAMPLE_HINT = {
   median: '逐通道取中位数，即上游 perfectPixel 的默认行为。',
 };
 
+const scenePage = document.body.dataset.samplingPage === 'scene';
 const state = {
   bitmap: null,
   src: null,
   res: null,
   key: 0,
-  opts: { largeGrid:false, gridRatio:1, forceGrid:true, sample2: '', sample: 'center', refine: 0.25, fixSquare: true, colors: 0, gridW: 0, gridH: 0, minCell: 2, maxCell: 64 },
+  opts: { largeGrid:scenePage, gridRatio:1, forceGrid:true, sample2: '', sample: scenePage ? 'scene-tonal' : 'center', refine: 0.25, fixSquare: true, colors: 0, gridW: 0, gridH: 0, minCell: 2, maxCell: 64 },
   mode: 'auto',
   wipe: 100,
   panX:0, panY:0, zoom: 1,
@@ -190,7 +197,7 @@ function activate(tab) {
   for (const b of $('#colorSeg').children) b.classList.toggle('on',Number(b.dataset.colors)===q.opts.colors);
   for (const b of $('#modeSeg').children) b.classList.toggle('on',b.dataset.mode===q.mode);
   drawTabs();
-  reprocess();
+  reprocess(false); // restore without recording a new settings action
 }
 
 function closeCanvas(tab, next = null) {
@@ -247,14 +254,14 @@ async function loadImage(source, name = '') {
   }
 }
 
-function reprocess() {
+function reprocess(recordHistory = true) {
   if (!state.src) return;
   if (state.mode === 'manual' && ![$('#gridW'),$('#gridH')].every(el=>el.value && el.validity.valid)) {
     $('#notes').replaceChildren();
     addNote(`横向和纵向格数必须是 1 到 ${$('#gridW').max} 的整数。`,'warn');
     return;
   }
-  remember();
+  if (recordHistory) remember();
   const owner = active;
   const gw = Number($('#gridW').value), gh = Number($('#gridH').value);
   $('#busy').hidden = false;
@@ -865,6 +872,8 @@ function updateDiag() {
   if (r.speckles > 0) {
     addNote(`强劲模式：另去除 ${r.speckles} 个孤立杂点。`, 'ok');
   }
+  if(r.subjectAmbiguous) addNote('未能可靠分离单个主体，已保留背景。', 'warn');
+  if(r.straightBudgetExceeded) addNote('已达到斜线规整的步数上限，剩余边界保留原样。', 'warn');
 }
 
 function addNote(text, kind) {
@@ -944,6 +953,20 @@ async function copyPng() {
     $('#btnCopy').textContent = '复制失败';
   }
   setTimeout(() => { $('#btnCopy').textContent = '复制到剪贴板'; }, 1400);
+}
+
+// Ctrl+Z never calls undoEdit: settings/layers are undone by the top-right button.
+function canvasUndoBlocked() {
+  const target=document.activeElement;
+  return $('#editor').open || target?.isContentEditable ||
+    !!target?.closest?.('textarea,input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]),[contenteditable=true]');
+}
+function handleCanvasUndoKey(e) {
+  if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== 'z') return false;
+  if (canvasUndoBlocked()) return false;
+  e.preventDefault();
+  if (!drawing && !e.repeat) undoCanvas();
+  return true;
 }
 
 /* --------------------------------------------------------------- 事件 */
@@ -1026,32 +1049,48 @@ function bind() {
     if(value*factor > +other.max || value*factor < +other.min)
       input.value=Math.min(+input.max,Math.max(+input.min,Math.round(paired/factor)));
   }
-  let gridTimer;
-  function commitGrid() {
-    clearTimeout(gridTimer);
+  function commitGrid(editedInput) {
     if (!active || state.mode !== 'manual') return;
-    const w = $('#gridW'), h = $('#gridH');
-    if (![w,h].every(input => input.value && input.validity.valid)) return;
-    if (active.settings.gw !== w.value || active.settings.gh !== h.value) reprocess();
+    if (editedInput && editedInput.value === active.settings[editedInput === widthInput ? 'gw' : 'gh']) return;
+    if (editedInput) linkOther(editedInput);
+    updateGridFactors();
+    if (![widthInput, heightInput].every(input => input.value && input.validity.valid)) return;
+    if (active.settings.gw !== widthInput.value || active.settings.gh !== heightInput.value) reprocess();
   }
   updateGridFactors();
+  const preset=$('#gridPreset640');
+  // A preset replaces both fields. Do not commit a pending single-field
+  // edit on pointer focus immediately before applying the explicit size.
+  preset.onpointerdown=e=>{
+    if(e.button===0&&[widthInput,heightInput].includes(document.activeElement))e.preventDefault();
+  };
+  preset.onclick=()=>{
+    const width=640,height=360;
+    state.opts.largeGrid=true;
+    state.opts.forceGrid=true;
+    if(state.opts.gridRatio)state.opts.gridRatio=width/height;
+    syncLargeGrid(true);
+    syncForceGrid(true);
+    widthInput.value=width;
+    heightInput.value=height;
+    updateGridFactors();
+    reprocess();
+    preset.focus();
+  };
   $('#gridFactors').onclick=e=>{
     const b=e.target.closest('button[data-factor]');
     if(!b || b.disabled) return;
     for(const el of [widthInput,heightInput]) el.value=Math.max(1,Math.round(el.valueAsNumber*Number(b.dataset.factor)));
-    updateGridFactors();
     commitGrid();
   };
-  for (const input of [$('#gridW'), $('#gridH')]) {
-    input.oninput = () => {
-      linkOther(input);
-      updateGridFactors();
-      clearTimeout(gridTimer);
-      const owner = active;
-      gridTimer = setTimeout(() => { if (owner === active) commitGrid(); }, 350);
+  for (const input of [widthInput, heightInput]) {
+    input.onblur = () => commitGrid(input);
+    input.onkeydown = e => {
+      if (e.key === 'Enter' && !e.isComposing) {
+        e.preventDefault();
+        commitGrid(input);
+      }
     };
-    input.onchange = commitGrid;
-    input.onkeydown = e => { if (e.key === 'Enter') commitGrid(); };
   }
 
   $('#refine').addEventListener('input', (e) => {
@@ -1120,6 +1159,7 @@ function bind() {
 
   // 拖拽
   const dz = $('#dz');
+  dz.tabIndex = 0;
   dz.title = '右键擦除 · 中键拖动平移 · 滚轮缩放 · 点击「适应」复位';
   let drag, panFrame, pointer;
   function followLasso() {
@@ -1139,6 +1179,10 @@ function bind() {
   dz.onauxclick = e => { if(e.button===1) e.preventDefault(); };
   dz.onpointerdown = e => {
     if (!state.res || drawing || drag) return;
+    if ([0,1,2].includes(e.button)) {
+      dz.focus({preventScroll:true});
+      e.preventDefault();
+    }
     if(e.button===0 || e.button===2){
       const [x,y]=pixelPoint(e).map(Math.floor), img=state.res.image;
       if(x<0||y<0||x>=img.width||y>=img.height) return;
@@ -1213,6 +1257,16 @@ function bind() {
     if (f && f.type.startsWith('image/')) loadImage(f, f.name);
   });
 
+  // Receive only from our own shell, and never route this to settings history.
+  window.addEventListener('message', e => {
+    if (window.parent === window || e.source !== window.parent) return;
+    if (e.data?.type === 'perfect-pixel-focus-canvas') {
+      if (!$('#editor').open) dz.focus({preventScroll:true});
+    } else if (e.data?.type === 'perfect-pixel-undo-canvas') {
+      if (!canvasUndoBlocked() && !drawing) undoCanvas();
+    }
+  });
+
   // 粘贴
   window.addEventListener('paste', (e) => {
     const items = e.clipboardData && e.clipboardData.items;
@@ -1240,12 +1294,7 @@ function bind() {
   }
 
   document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'z') {
-      if ($('#editor').open || e.target.isContentEditable || e.target.matches('textarea,input[type=text],input[type=url],input[type=number]')) return;
-      e.preventDefault();
-      if (!drawing && !e.repeat) undoCanvas();
-      return;
-    }
+    if (handleCanvasUndoKey(e)) return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();
       exportPng();
@@ -1275,6 +1324,7 @@ function boot() {
   syncLargeGrid(state.opts.largeGrid);
   syncForceGrid(state.opts.forceGrid);
   for (const option of $('#sample').options) $('#sample2').append(option.cloneNode(true));
+  if (scenePage) $('#sample2').closest('label').hidden = true;
   $('#sample2').value = '';
   $('#sample2').onchange = () => { state.opts.sample2 = $('#sample2').value; reprocess(); };
   $('#undo').onclick = undoEdit;

@@ -551,6 +551,7 @@ input[type="checkbox"]:checked::after {
 #gridLink svg {width:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
 #gridLink[aria-pressed=true] {color:var(--accent);outline:2px solid currentColor}
 .grid-inputs input {width:100%;min-width:0}
+#gridPreset640 {grid-column:1/-1;justify-self:start}
 
 #gridFactors {grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:4px} #gridFactors small {display:block;font-size:10px}
 

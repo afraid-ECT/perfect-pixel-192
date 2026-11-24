@@ -1,7 +1,7 @@
 /**
  * 静态一致性检查（没有浏览器可用时的替代验证）：
- *  - app.js 里引用的每个 #id 都必须在 app.html 中存在
- *  - app.html 里的每个 id 至少被 app.js 引用一次（避免死代码/拼写错误）
+ *  - 工作区入口及其子页面依赖都应存在
+ *  - app.js 和两个编辑器页面的 DOM id 应双向一致
  *  - manifest 里声明的文件必须存在
  *  - app.js / core.js 里 import 的符号必须在 core.js 中导出
  */
@@ -18,19 +18,30 @@ const check = (name, ok, extra = '') => {
   if (!ok) fail++;
 };
 
-const html = read('app.html');
 const js = read('app.js');
 const core = read('core.js');
-
-const htmlIds = new Set([...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]));
 const jsIds = new Set([...js.matchAll(/\$\(['"]#([A-Za-z0-9_-]+)['"]\)/g)].map((m) => m[1]));
 
-console.log('\n# DOM id 一致性');
-for (const id of jsIds) check(`app.js 引用 #${id} 存在于 app.html`, htmlIds.has(id));
-const STRUCT_ONLY = new Set(['diag']); // 纯样式钩子，不需要 JS 引用
-for (const id of htmlIds) {
-  if (STRUCT_ONLY.has(id)) continue;
-  check(`app.html 的 #${id} 被 app.js 使用`, jsIds.has(id));
+const editors = ['workspace-app.html', 'workspace-scene.html'];
+const inlineScript = /<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/;
+const structureOnly = new Set(['diag']);
+for (const file of editors) {
+  console.log(`\n# ${file}`);
+  const html = read(file);
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]);
+  const htmlIds = new Set(ids);
+  check('DOM id 唯一', ids.length === htmlIds.size);
+  for (const id of jsIds) check(`app.js 引用的 #${id} 存在`, htmlIds.has(id));
+  for (const id of htmlIds) {
+    if (!structureOnly.has(id)) check(`#${id} 被 app.js 使用`, jsIds.has(id));
+  }
+  check('模块入口 app.js', /<script type="module" src="app\.js">/.test(html));
+  check('无内联脚本（MV3 CSP）', !inlineScript.test(html));
+  check('引用了 app.css', html.includes('href="app.css"'));
+  check('所有 input 都有 id 或 name', !/<input\b(?![^>]*\b(?:id|name)=)[^>]*>/.test(html));
+  for (const [, dependency] of html.matchAll(/\b(?:src|href)="([^"]+)"/g)) {
+    check(`依赖 ${dependency} 存在`, existsSync(join(root, dependency)));
+  }
 }
 
 console.log('\n# core.js 导出完整性');
@@ -53,11 +64,17 @@ check('service_worker 存在', existsSync(join(root, manifest.background.service
 check('无 v2 遗留字段 (browser_action)', !('browser_action' in manifest));
 check('未声明 content_scripts（本扩展不需要注入）', !('content_scripts' in manifest));
 
-console.log('\n# HTML 结构');
-check('使用 <script type="module">', /<script type="module" src="app\.js">/.test(html));
-check('无内联 <script> 代码（MV3 CSP）', !/<script(?![^>]*\bsrc=)[^>]*>[\s\S]*?<\/script>/.test(html));
-check('引用了 app.css', html.includes('href="app.css"'));
-check('所有 input 都有 id 或 name', !/<input(?![^>]*\bid=)[^>]*>/.test(html));
+console.log('\n# 工作区入口');
+for (const [entry, pages] of [['app.html', editors], ['demo.html', ['workspace-demo.html', 'workspace-scene-demo.html']]]) {
+  const html = read(entry);
+  check(`${entry} 加载工作区脚本`, html.includes('src="workspace.js"') && existsSync(join(root, 'workspace.js')));
+  check(`${entry} 加载外壳样式`, html.includes('href="workspace.css"') && existsSync(join(root, 'workspace.css')));
+  check(`${entry} 无内联脚本`, !inlineScript.test(html));
+  for (const [i, attr] of ['data-object', 'data-scene'].entries()) {
+    const page = pages[i];
+    check(`${entry} 载入 ${page}`, html.includes(`${attr}="${page}"`) && existsSync(join(root, page)));
+  }
+}
 
 console.log(`\n===== ${fail ? `${fail} 项未通过` : '全部通过'} =====`);
 process.exit(fail ? 1 : 0);
