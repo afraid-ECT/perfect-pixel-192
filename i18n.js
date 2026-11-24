@@ -27,6 +27,7 @@ const messages = {
   "重新检测": "Detect again",
   "采样方式一": "First sampling pass",
   "轮廓优先（格内众数 + 外侧清理）": "Outline priority (cell majority + edge cleanup)",
+  "主体融合（试验 · 透明抠图）": "Subject fusion (experimental cutout)",
   "中心裁剪均值（推荐 / 抗软边）": "Center crop average (soft-edge reduction)",
   "★ 强劲模式：单像素中心 + 32 色 + 清轮廓外侧": "Strong: center pixel, up to 32 colors, outline cleanup",
   "区域吸附去 AA（描边整体发灰时更狠）": "Region snap (reduce anti-aliasing)",

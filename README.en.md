@@ -6,10 +6,12 @@ Perfect Pixel 192 is a local browser editor for refining pixel art. Detect a pix
 
 ## Open the editor
 
-- **Standalone:** Download the repository, extract it, and open `demo.html` in Chrome or Edge. The file includes the editor and needs no installation.
+- **Standalone:** Extract the offline ZIP, keep its directory structure, and open `demo.html` in Chrome or Edge.
 - **Browser extension:** Open the extensions page in Chrome or Edge, enable Developer mode, choose **Load unpacked**, and select the folder that contains `manifest.json`. You can then send a web image to the editor from its context menu.
 
 Use the language button at the top to switch between English and Chinese. On first use, Chinese browser locales select Chinese and other locales select English. The editor remembers your choice when browser storage is available. Save your PNG before refreshing the page; canvases are kept for the current session.
+
+Use the workspace tabs to switch between single-subject and whole-image sampling. In the whole-image workspace, choose the 640 × 360 manual grid preset or try mode ⑤, which regularizes contours and refills regions. Fine details such as grout can retain irregular pixel steps.
 
 ## Make a 192 × 224 portrait with 4 × 4 pixel blocks
 
