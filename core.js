@@ -1035,6 +1035,17 @@ export function analyze(img, opts = {}) {
   const est = estimateCell(gray, gx, gy, o, w, h);
   let gridW = o.gridW > 0 ? Math.round(o.gridW) : est.gridW;
   let gridH = o.gridH > 0 ? Math.round(o.gridH) : est.gridH;
+  if (o.forceGrid && !(o.gridW > 0 || o.gridH > 0)) {
+    // A shared cell size can round to different effective sizes at the
+    // image edges. Adjust only when rounding cannot explain the mismatch.
+    const minPitch = Math.max(w / (gridW + 0.5), h / (gridH + 0.5));
+    const maxPitch = Math.min(w / (gridW - 0.5), h / (gridH - 0.5));
+    if (minPitch >= maxPitch) {
+      const cell = Math.min(w / gridW, h / gridH);
+      gridW = Math.max(1, Math.round(w / cell));
+      gridH = Math.max(1, Math.round(h / cell));
+    }
+  }
   const cellW = w / gridW;
   const cellH = h / gridH;
 

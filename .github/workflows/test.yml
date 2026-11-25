@@ -18,6 +18,8 @@ jobs:
 
       - name: 算法回归（43 项断言）
         run: node test/test-core.mjs
+      - name: 自动方格与手动网格回归
+        run: node test/test-auto-square.mjs
 
       - name: 成品模式回归（14 项断言）
         run: node test/test-strong.mjs

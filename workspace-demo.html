@@ -649,11 +649,11 @@ input[type="checkbox"]:checked::after {
           <input id="refine" type="range" min="0" max="50" value="25" />
           <em id="refineNum">25%</em>
         </label>
+        <label class="row check"><input id="forceGrid" type="checkbox" checked> 强制等距网格（自动优先方格）</label>
         <label class="row check">
-          <input id="fixSquare" type="checkbox" checked />
-          <span>近似正方形时强制对齐（上游 fix_square）</span>
+          <input id="fixSquare" type="checkbox" disabled />
+          <span>输出宽高差 1 格时对齐（关闭等距后可用）</span>
         </label>
-        <label class="row check"><input id="forceGrid" type="checkbox" checked> 强制对齐到等距网格</label>
         <label class="row check"><input id="largeGrid" type="checkbox"> 大图精校 · 上限 2048 格</label>
         <p class="hint">这里填写采样格数。要导出 192×224 的 4×4 色块，请填 48×56，并在「输出与导出」选择 192×224。</p>
         <button id="btnRedetect" class="btn">重新检测</button>
@@ -712,10 +712,10 @@ input[type="checkbox"]:checked::after {
         <label class="row">
           <span>目标尺寸</span>
           <select id="target">
-            <option value="one">1× 原格（无放大）</option>
+            <option value="one" selected>1× 原格（无放大）</option>
             <option value="input">与原图同尺寸</option>
             <option value="192x224">192 × 224（竖版）</option>
-            <option value="192" selected>192 × 192</option>
+            <option value="192">192 × 192</option>
             <option value="384">384 × 384</option>
             <option value="512">512 × 512</option>
             <option value="1024">1024 × 1024</option>
@@ -1796,6 +1796,17 @@ function analyze(img, opts = {}) {
   const est = estimateCell(gray, gx, gy, o, w, h);
   let gridW = o.gridW > 0 ? Math.round(o.gridW) : est.gridW;
   let gridH = o.gridH > 0 ? Math.round(o.gridH) : est.gridH;
+  if (o.forceGrid && !(o.gridW > 0 || o.gridH > 0)) {
+    // A shared cell size can round to different effective sizes at the
+    // image edges. Adjust only when rounding cannot explain the mismatch.
+    const minPitch = Math.max(w / (gridW + 0.5), h / (gridH + 0.5));
+    const maxPitch = Math.min(w / (gridW - 0.5), h / (gridH - 0.5));
+    if (minPitch >= maxPitch) {
+      const cell = Math.min(w / gridW, h / gridH);
+      gridW = Math.max(1, Math.round(w / cell));
+      gridH = Math.max(1, Math.round(h / cell));
+    }
+  }
   const cellW = w / gridW;
   const cellH = h / gridH;
 
@@ -5245,8 +5256,8 @@ const messages = {
   "横向格数": "Columns",
   "纵向格数": "Rows",
   "精修强度": "Refinement",
-  "近似正方形时强制对齐（上游 fix_square）": "Square up nearly square grids",
-  "强制对齐到等距网格": "Lock to an evenly spaced grid",
+  "输出宽高差 1 格时对齐（关闭等距后可用）": "Square up outputs that differ by one cell (available with even spacing off)",
+  "强制等距网格（自动优先方格）": "Use an evenly spaced grid (prefer square cells in auto mode)",
   "大图精校 · 上限 2048 格": "High precision · up to 2048 cells",
   "这里填写采样格数。要导出 192×224 的 4×4 色块，请填 48×56，并在「输出与导出」选择 192×224。": "Set the sampling grid here. For 4×4 blocks in a 192×224 PNG, enter 48×56 and select 192×224 under Export size.",
   "重新检测": "Detect again",
@@ -5511,7 +5522,7 @@ const state = {
   panX:0, panY:0, zoom: 1,
   fit: 1,
   grid: true,
-  target: '192',
+  target: $('#target').value,
   disp: { w: 0, h: 0 },
 };
 
@@ -5655,7 +5666,6 @@ function activate(tab) {
   $('#refine').value = Math.round(q.opts.refine*100);
   $('#refineNum').textContent = $('#refine').value+'%';
   syncForceGrid(q.opts.forceGrid);
-  $('#fixSquare').checked = q.opts.fixSquare;
   $('#target').value = q.target;
   $('#showGrid').checked = state.grid;
   $('#wipe').value = state.wipe;
@@ -6314,9 +6324,6 @@ function updateDiag() {
   if (r.confidence < 0.45) {
     addNote('置信度偏低：这张图可能不是像素画，或网格不规则。可以手动指定格数再试。', 'warn');
   }
-  if (r.gridW > 0 && Math.abs(W / r.gridW - Math.round(W / r.gridW)) > 0.02) {
-    addNote(`横向格宽是 ${(W / r.gridW).toFixed(2)}px，不是整数：右侧最后一格会略窄，属正常现象。`, '');
-  }
   if (r.squared) {
     addNote('检测到近似正方形，已按 fix_square 规则补齐对齐。', '');
   }
@@ -6443,7 +6450,10 @@ function syncLargeGrid(enabled) {
 
 function syncForceGrid(enabled) {
   $('#forceGrid').checked = enabled;
-  $('#fixSquare').disabled = $('#refine').disabled = enabled;
+  const fixSquare = $('#fixSquare');
+  fixSquare.checked = !enabled && state.opts.fixSquare;
+  fixSquare.disabled = enabled;
+  $('#refine').disabled = enabled;
 }
 
 function bind() {

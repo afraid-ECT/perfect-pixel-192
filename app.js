@@ -46,7 +46,7 @@ const state = {
   panX:0, panY:0, zoom: 1,
   fit: 1,
   grid: true,
-  target: '192',
+  target: $('#target').value,
   disp: { w: 0, h: 0 },
 };
 
@@ -190,7 +190,6 @@ function activate(tab) {
   $('#refine').value = Math.round(q.opts.refine*100);
   $('#refineNum').textContent = $('#refine').value+'%';
   syncForceGrid(q.opts.forceGrid);
-  $('#fixSquare').checked = q.opts.fixSquare;
   $('#target').value = q.target;
   $('#showGrid').checked = state.grid;
   $('#wipe').value = state.wipe;
@@ -849,9 +848,6 @@ function updateDiag() {
   if (r.confidence < 0.45) {
     addNote('置信度偏低：这张图可能不是像素画，或网格不规则。可以手动指定格数再试。', 'warn');
   }
-  if (r.gridW > 0 && Math.abs(W / r.gridW - Math.round(W / r.gridW)) > 0.02) {
-    addNote(`横向格宽是 ${(W / r.gridW).toFixed(2)}px，不是整数：右侧最后一格会略窄，属正常现象。`, '');
-  }
   if (r.squared) {
     addNote('检测到近似正方形，已按 fix_square 规则补齐对齐。', '');
   }
@@ -978,7 +974,10 @@ function syncLargeGrid(enabled) {
 
 function syncForceGrid(enabled) {
   $('#forceGrid').checked = enabled;
-  $('#fixSquare').disabled = $('#refine').disabled = enabled;
+  const fixSquare = $('#fixSquare');
+  fixSquare.checked = !enabled && state.opts.fixSquare;
+  fixSquare.disabled = enabled;
+  $('#refine').disabled = enabled;
 }
 
 function bind() {

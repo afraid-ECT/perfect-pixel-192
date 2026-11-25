@@ -86,11 +86,11 @@
           <input id="refine" type="range" min="0" max="50" value="25" />
           <em id="refineNum">25%</em>
         </label>
+        <label class="row check"><input id="forceGrid" type="checkbox" checked> 强制等距网格（自动优先方格）</label>
         <label class="row check">
-          <input id="fixSquare" type="checkbox" checked />
-          <span>近似正方形时强制对齐（上游 fix_square）</span>
+          <input id="fixSquare" type="checkbox" disabled />
+          <span>输出宽高差 1 格时对齐（关闭等距后可用）</span>
         </label>
-        <label class="row check"><input id="forceGrid" type="checkbox" checked> 强制对齐到等距网格</label>
         <label class="row check"><input id="largeGrid" type="checkbox"> 大图精校 · 上限 2048 格</label>
         <p class="hint">这里填写采样格数。要导出 192×224 的 4×4 色块，请填 48×56，并在「输出与导出」选择 192×224。</p>
         <button id="btnRedetect" class="btn">重新检测</button>
@@ -149,10 +149,10 @@
         <label class="row">
           <span>目标尺寸</span>
           <select id="target">
-            <option value="one">1× 原格（无放大）</option>
+            <option value="one" selected>1× 原格（无放大）</option>
             <option value="input">与原图同尺寸</option>
             <option value="192x224">192 × 224（竖版）</option>
-            <option value="192" selected>192 × 192</option>
+            <option value="192">192 × 192</option>
             <option value="384">384 × 384</option>
             <option value="512">512 × 512</option>
             <option value="1024">1024 × 1024</option>
